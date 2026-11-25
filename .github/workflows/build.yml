@@ -1,0 +1,75 @@
+name: Build Universal IPA
+
+on:
+  workflow_dispatch:
+    inputs:
+      app_name:
+        description: 'Название приложения'
+        required: true
+        default: 'MyCustomApp'
+      bundle_id:
+        description: 'Bundle ID (на латинице)'
+        required: true
+        default: 'com.tigran.myapp'
+
+jobs:
+  build-ipa:
+    runs-on: macos-latest
+
+    steps:
+      - name: Загрузка файлов репозитория
+        uses: actions/checkout@v4
+
+      - name: Установка XcodeGen и Python
+        run: |
+          brew install xcodegen
+          python3 -m pip install --upgrade pip
+
+      - name: Скачивание готового ядра Python для iOS
+        run: |
+          mkdir -p Frameworks
+          curl -L https://github.com/beeware/Python-Apple-support/releases/download/3.11-b8/Python-3.11-iOS-support.b8.tar.gz -o python-ios.tar.gz
+          tar -xzf python-ios.tar.gz -C Frameworks/
+          rm python-ios.tar.gz
+
+      - name: Установка пакетов из pip
+        run: |
+          mkdir -p app_code/site-packages
+          if [ -s app_code/requirements.txt ]; then
+            pip install -r app_code/requirements.txt --target app_code/site-packages --no-deps || pip install -r app_code/requirements.txt --target app_code/site-packages
+          fi
+
+      - name: Компиляция C++ кода
+        run: |
+          if ls app_code/*.cpp 1> /dev/null 2>&1; then
+            clang++ -shared -fPIC -O3 -arch arm64 \
+              -isysroot $(xcrun --sdk iphoneos --show-sdk-path) \
+              -miphoneos-version-min=15.0 \
+              app_code/*.cpp -o app_code/libnative.dylib
+          fi
+
+      - name: Генерация Xcode проекта
+        run: |
+          python3 setup_project.py "${{ github.event.inputs.app_name }}" "${{ github.event.inputs.bundle_id }}"
+          xcodegen generate
+
+      - name: Сборка и упаковка в IPA
+        run: |
+          xcodebuild -project "${{ github.event.inputs.app_name }}.xcodeproj" \
+            -scheme "${{ github.event.inputs.app_name }}" \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            CODE_SIGNING_ALLOWED=NO \
+            CONFIGURATION_BUILD_DIR=build_out \
+            build
+
+          mkdir -p Payload
+          cp -r "build_out/${{ github.event.inputs.app_name }}.app" Payload/
+          zip -r "${{ github.event.inputs.app_name }}.ipa" Payload
+
+      - name: Сохранение готового IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ github.event.inputs.app_name }}-IPA
+          path: "*.ipa"
