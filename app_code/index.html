@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+  body { background: #000; color: #fff; font-family: -apple-system, sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; }
+  button { background: #0a84ff; color: #fff; border: none; padding: 14px 24px; border-radius: 12px; font-size: 16px; font-weight: 600; }
+  #out { margin-top: 20px; color: #8e8e93; }
+</style>
+</head>
+<body>
+  <h2>HTML + Python + C++</h2>
+  <button onclick="testBridge()">Проверить связку</button>
+  <div id="out">Ожидание...</div>
+
+  <script>
+    async function testBridge() {
+      try {
+        let res = await fetch('http://127.0.0.1:8765');
+        let data = await res.json();
+        document.getElementById('out').innerText = 'Ответ от C++ через Python: ' + data.cpp_result;
+      } catch (e) {
+        document.getElementById('out').innerText = 'Ошибка: ' + e;
+      }
+    }
+  </script>
+</body>
+</html>
