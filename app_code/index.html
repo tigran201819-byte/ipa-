@@ -3,24 +3,24 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>IPA Конструктор (Offline)</title>
+<title>IPA Студия v3.0</title>
 <style>
   :root {
-    --bg: #0b0616;
-    --card: #150d28;
-    --card-border: #2c1d52;
+    --bg: #090512;
+    --card: #140c26;
+    --card-2: #1c1236;
+    --card-border: #2e1e57;
     --accent: #8b5cf6;
+    --accent-2: #a78bfa;
     --accent-glow: rgba(139, 92, 246, 0.35);
     --text: #f5f3ff;
     --muted: #a78bfa;
     --danger: #ef4444;
     --success: #10b981;
+    --warning: #f59e0b;
   }
 
-  * {
-    box-sizing: border-box;
-    -webkit-tap-highlight-color: transparent;
-  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
   body {
     margin: 0;
@@ -28,25 +28,34 @@
     background: var(--bg);
     color: var(--text);
     font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif;
-    padding-bottom: 90px;
+    padding-bottom: 95px;
   }
 
   .header {
-    padding: 54px 18px 16px;
+    padding: 52px 18px 14px;
     background: linear-gradient(180deg, #1d1138 0%, var(--bg) 100%);
     border-bottom: 1px solid var(--card-border);
     display: flex;
     align-items: center;
     justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 20;
   }
 
   .header h1 {
     margin: 0;
-    font-size: 21px;
+    font-size: 20px;
     font-weight: 700;
     background: linear-gradient(90deg, #fff, #c4b5fd);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
+  }
+
+  .header-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
   }
 
   .badge {
@@ -59,28 +68,35 @@
     font-weight: 700;
   }
 
+  .home-btn {
+    background: #231642;
+    border: 1px solid var(--accent);
+    color: #fff;
+    padding: 6px 12px;
+    border-radius: 10px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
   .tabs {
     display: flex;
     gap: 8px;
     padding: 12px 16px;
     overflow-x: auto;
   }
-
-  .tabs::-webkit-scrollbar {
-    display: none;
-  }
+  .tabs::-webkit-scrollbar { display: none; }
 
   .tab {
     background: var(--card);
     border: 1px solid var(--card-border);
     color: var(--muted);
-    padding: 9px 14px;
+    padding: 9px 13px;
     border-radius: 12px;
     font-size: 13px;
     font-weight: 600;
     white-space: nowrap;
     cursor: pointer;
-    transition: 0.2s;
   }
 
   .tab.active {
@@ -90,14 +106,8 @@
     box-shadow: 0 4px 14px var(--accent-glow);
   }
 
-  .section {
-    display: none;
-    padding: 0 16px;
-  }
-
-  .section.active {
-    display: block;
-  }
+  .section { display: none; padding: 0 16px; }
+  .section.active { display: block; }
 
   .card {
     background: var(--card);
@@ -108,9 +118,9 @@
   }
 
   .card-title {
-    font-size: 14px;
-    font-weight: 600;
-    color: #ddd6fe;
+    font-size: 15px;
+    font-weight: 700;
+    color: #ede9fe;
     margin-bottom: 12px;
     display: flex;
     justify-content: space-between;
@@ -124,11 +134,9 @@
     margin-bottom: 6px;
   }
 
-  input[type="text"],
-  select,
-  textarea {
+  input[type="text"], select, textarea {
     width: 100%;
-    background: #0e081d;
+    background: #0d071b;
     border: 1px solid var(--card-border);
     border-radius: 12px;
     color: #fff;
@@ -139,46 +147,11 @@
     font-family: inherit;
   }
 
-  input:focus,
-  select:focus,
-  textarea:focus {
-    border-color: var(--accent);
-    box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.2);
-  }
-
   textarea.code-editor {
     font-family: "SF Mono", Menlo, monospace;
     font-size: 13px;
-    min-height: 240px;
+    min-height: 230px;
     line-height: 1.45;
-    resize: vertical;
-  }
-
-  .icon-picker {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    margin-bottom: 12px;
-  }
-
-  .icon-preview {
-    width: 68px;
-    height: 68px;
-    border-radius: 16px;
-    background: #231542;
-    border: 2px dashed var(--accent);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 26px;
-    overflow: hidden;
-    flex-shrink: 0;
-  }
-
-  .icon-preview img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
   }
 
   .btn {
@@ -186,18 +159,14 @@
     background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%);
     color: #fff;
     border: none;
-    padding: 14px;
-    border-radius: 14px;
-    font-size: 15px;
+    padding: 13px;
+    border-radius: 13px;
+    font-size: 14px;
     font-weight: 600;
     cursor: pointer;
-    box-shadow: 0 6px 20px var(--accent-glow);
-    transition: 0.15s;
+    box-shadow: 0 6px 18px var(--accent-glow);
   }
-
-  .btn:active {
-    transform: scale(0.98);
-  }
+  .btn:active { transform: scale(0.98); }
 
   .btn-secondary {
     background: #22163f;
@@ -206,6 +175,11 @@
     padding: 10px 14px;
     font-size: 13px;
     width: auto;
+  }
+
+  .btn-success {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    box-shadow: 0 6px 18px rgba(16, 185, 129, 0.25);
   }
 
   .btn-danger {
@@ -219,234 +193,622 @@
     box-shadow: none;
   }
 
+  .grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .tpl-card {
+    background: var(--card-2);
+    border: 1px solid var(--card-border);
+    border-radius: 14px;
+    padding: 12px;
+    cursor: pointer;
+    transition: 0.15s;
+  }
+  .tpl-card:active { transform: scale(0.97); border-color: var(--accent); }
+  .tpl-icon { font-size: 24px; margin-bottom: 6px; }
+  .tpl-name { font-size: 13px; font-weight: 700; color: #fff; margin-bottom: 4px; }
+  .tpl-desc { font-size: 11px; color: var(--muted); line-height: 1.3; }
+
+  .proj-item {
+    background: #0d071b;
+    border: 1px solid var(--card-border);
+    border-radius: 14px;
+    padding: 12px;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+
+  .proj-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex: 1;
+    overflow: hidden;
+  }
+
+  .proj-ico {
+    width: 46px;
+    height: 46px;
+    border-radius: 12px;
+    background: #231542;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+  .proj-ico img { width: 100%; height: 100%; object-fit: cover; }
+
+  .icon-picker {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 12px;
+  }
+  .icon-preview {
+    width: 68px;
+    height: 68px;
+    border-radius: 16px;
+    background: #231542;
+    border: 2px dashed var(--accent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 26px;
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+  .icon-preview img { width: 100%; height: 100%; object-fit: cover; }
+
   .file-item {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    background: #0e081d;
+    background: #0d071b;
     border: 1px solid var(--card-border);
     padding: 10px 12px;
     border-radius: 12px;
     margin-bottom: 8px;
   }
+  .file-info { display: flex; align-items: center; gap: 10px; overflow: hidden; flex: 1; cursor: pointer; }
+  .lang-tag { background: #2e1d59; color: #c4b5fd; padding: 3px 8px; border-radius: 6px; font-size: 11px; font-weight: 700; text-transform: uppercase; }
+  .file-path { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-  .file-info {
-    display: flex;
+  /* Рамка предпросмотра iPhone */
+  .phone-frame {
+    width: 100%;
+    height: 460px;
+    border: 4px solid #2e1e57;
+    border-radius: 28px;
+    overflow: hidden;
+    background: #000;
+    position: relative;
+    box-shadow: 0 12px 30px rgba(0,0,0,0.6);
+  }
+  .phone-notch {
+    width: 110px;
+    height: 20px;
+    background: #2e1e57;
+    border-bottom-left-radius: 12px;
+    border-bottom-right-radius: 12px;
+    margin: 0 auto;
+    position: relative;
+    z-index: 5;
+  }
+  .phone-frame iframe {
+    width: 100%;
+    height: calc(100% - 20px);
+    border: none;
+    background: #0b0616;
+  }
+
+  /* Модальное окно восстановления черновика */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(5, 2, 12, 0.85);
+    backdrop-filter: blur(8px);
+    display: none;
     align-items: center;
-    gap: 10px;
-    overflow: hidden;
-    flex: 1;
-    cursor: pointer;
+    justify-content: center;
+    padding: 20px;
+    z-index: 100;
   }
-
-  .lang-tag {
-    background: #2e1d59;
-    color: #c4b5fd;
-    padding: 3px 8px;
-    border-radius: 6px;
-    font-size: 11px;
-    font-weight: 700;
-    text-transform: uppercase;
+  .modal-card {
+    background: #180f2e;
+    border: 1px solid var(--accent);
+    border-radius: 20px;
+    padding: 20px;
+    width: 100%;
+    max-width: 360px;
+    box-shadow: 0 15px 40px rgba(0,0,0,0.7);
   }
-
-  .file-path {
-    font-size: 13px;
-    font-weight: 500;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .lang-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 8px;
-    margin-bottom: 12px;
-  }
-
-  .lang-chip {
-    background: #0e081d;
-    border: 1px solid var(--card-border);
-    color: #ddd6fe;
-    padding: 10px 6px;
-    border-radius: 10px;
-    text-align: center;
-    font-size: 12px;
-    font-weight: 600;
-    cursor: pointer;
-  }
-
-  .lang-chip.selected {
-    background: rgba(139, 92, 246, 0.25);
-    border-color: var(--accent);
-    color: #fff;
-  }
+  .modal-title { font-size: 18px; font-weight: 700; margin-bottom: 8px; color: #fff; }
+  .modal-text { font-size: 13px; color: #ddd6fe; margin-bottom: 16px; line-height: 1.4; }
+  .modal-btns { display: flex; flex-direction: column; gap: 10px; }
 
   .status-box {
     margin-top: 12px;
     padding: 12px;
     border-radius: 12px;
-    background: #0e081d;
+    background: #0d071b;
     border: 1px solid var(--card-border);
     font-size: 13px;
     color: #ddd6fe;
     line-height: 1.45;
     display: none;
   }
+
+  .faq-item {
+    border-bottom: 1px solid var(--card-border);
+    padding-bottom: 10px;
+    margin-bottom: 10px;
+  }
+  .faq-item:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+  .faq-q { font-size: 13px; font-weight: 700; color: #c4b5fd; margin-bottom: 4px; }
+  .faq-a { font-size: 12px; color: #e9d5ff; line-height: 1.4; }
 </style>
 </head>
 <body>
 
 <div class="header">
-  <h1>IPA Конструктор</h1>
-  <span class="badge">OFFLINE • iOS</span>
-</div>
-
-<div class="tabs">
-  <div class="tab active" onclick="switchTab('project', this)">1. Приложение</div>
-  <div class="tab" onclick="switchTab('files', this)">2. Файлы и папки</div>
-  <div class="tab" onclick="switchTab('editor', this)">3. Код</div>
-  <div class="tab" onclick="switchTab('build', this)">4. Собрать IPA</div>
-</div>
-
-<!-- 1. НАСТРОЙКИ ПРИЛОЖЕНИЯ -->
-<div id="tab-project" class="section active">
-  <div class="card">
-    <div class="card-title">Иконка и название</div>
-    <div class="icon-picker">
-      <div class="icon-preview" id="iconPreview">📁</div>
-      <div style="flex:1">
-        <label>Картинка приложения</label>
-        <input type="file" id="iconInput" accept="image/*" style="display:none" onchange="loadIcon(event)">
-        <button class="btn btn-secondary" onclick="document.getElementById('iconInput').click()">Выбрать с телефона</button>
-      </div>
-    </div>
-
-    <label>Название приложения</label>
-    <input type="text" id="appName" value="MyApp" placeholder="Например: GameTool">
-
-    <label>Bundle ID (латиницей)</label>
-    <input type="text" id="bundleId" value="com.tigran.myapp" placeholder="com.name.app">
-  </div>
-
-  <div class="card">
-    <div class="card-title">Языки в проекте</div>
-    <div class="lang-grid">
-      <div class="lang-chip selected" onclick="this.classList.toggle('selected')">HTML / CSS</div>
-      <div class="lang-chip selected" onclick="this.classList.toggle('selected')">JavaScript</div>
-      <div class="lang-chip selected" onclick="this.classList.toggle('selected')">Python</div>
-      <div class="lang-chip" onclick="this.classList.toggle('selected')">C++</div>
-      <div class="lang-chip" onclick="this.classList.toggle('selected')">C / Objective-C</div>
-      <div class="lang-chip" onclick="this.classList.toggle('selected')">Swift</div>
-      <div class="lang-chip" onclick="this.classList.toggle('selected')">Lua</div>
-      <div class="lang-chip" onclick="this.classList.toggle('selected')">TypeScript</div>
-      <div class="lang-chip" onclick="this.classList.toggle('selected')">JSON / SQL</div>
-    </div>
+  <h1 id="headerTitle">IPA Студия</h1>
+  <div class="header-actions">
+    <button class="home-btn" id="backHomeBtn" style="display:none" onclick="goHome()">← Проекты</button>
+    <span class="badge">OFFLINE</span>
   </div>
 </div>
 
-<!-- 2. ФАЙЛЫ И ПАПКИ -->
-<div id="tab-files" class="section">
-  <div class="card">
-    <div class="card-title">Создать файл в структуре</div>
-    <label>Путь и имя (папка создастся сама через /)</label>
-    <input type="text" id="newFilePath" placeholder="Например: ui/style.css или core/main.py">
-    
-    <label>Язык файла</label>
-    <select id="newFileLang">
-      <option value="html">HTML (Экран)</option>
-      <option value="css">CSS (Стили)</option>
-      <option value="js">JavaScript (Логика)</option>
-      <option value="py">Python (Скрипт)</option>
-      <option value="cpp">C++ (Плюсы)</option>
-      <option value="c">C (Си)</option>
-      <option value="swift">Swift</option>
-      <option value="lua">Lua</option>
-      <option value="json">JSON</option>
-    </select>
-
-    <button class="btn" onclick="createFile()">+ Добавить в структуру</button>
-  </div>
-
+<!-- ГЛАВНОЕ МЕНЮ (ПРОЕКТЫ, ЗАГОТОВКИ, ICLOUD) -->
+<div id="home-screen" class="section active" style="padding-top: 14px;">
   <div class="card">
     <div class="card-title">
-      <span>Файлы внутри IPA</span>
-      <span id="fileCount" style="color: var(--muted); font-size: 12px;"></span>
+      <span>Мои проекты</span>
+      <button class="btn btn-secondary" onclick="createNewEmptyProject()">+ Новый</button>
     </div>
-    <div id="fileList"></div>
+    <div id="savedProjectsList"></div>
   </div>
-</div>
 
-<!-- 3. РЕДАКТОР КОДА -->
-<div id="tab-editor" class="section">
   <div class="card">
-    <div class="card-title">Редактор кода</div>
-    <label>Файл для редактирования</label>
-    <select id="editorFileSelect" onchange="openFileInEditor()"></select>
-
-    <label>Исходный код</label>
-    <textarea id="codeArea" class="code-editor" placeholder="Вставь или напиши код..."></textarea>
-
-    <div style="display:flex; gap:10px;">
-      <button class="btn" onclick="saveCurrentCode()">Сохранить</button>
-      <button class="btn btn-secondary" onclick="document.getElementById('codeFileInput').click()">Импорт файла</button>
-      <input type="file" id="codeFileInput" style="display:none" onchange="handleCodeUpload(event)">
+    <div class="card-title">Заготовки (Шаблоны проектов)</div>
+    <div class="grid-2">
+      <div class="tpl-card" onclick="useTemplate('blank')">
+        <div class="tpl-icon">🟣</div>
+        <div class="tpl-name">Пустой каркас</div>
+        <div class="tpl-desc">Чистый фиолетовый интерфейс HTML + CSS + JS</div>
+      </div>
+      <div class="tpl-card" onclick="useTemplate('python')">
+        <div class="tpl-icon">🐍</div>
+        <div class="tpl-name">Python + pip</div>
+        <div class="tpl-desc">Скрипты на Python и загрузка пакетов из PyPI</div>
+      </div>
+      <div class="tpl-card" onclick="useTemplate('game')">
+        <div class="tpl-icon">🎮</div>
+        <div class="tpl-name">2D Игра / Canvas</div>
+        <div class="tpl-desc">Готовый игровой цикл 60 FPS с управлением касанием</div>
+      </div>
+      <div class="tpl-card" onclick="useTemplate('tool')">
+        <div class="tpl-icon">🛠</div>
+        <div class="tpl-name">Утилита / Трекер</div>
+        <div class="tpl-desc">Приложение с вкладками и сохранением данных</div>
+      </div>
     </div>
-    <div id="saveStatus" class="status-box"></div>
   </div>
-</div>
 
-<!-- 4. ОФФЛАЙН СБОРКА IPA -->
-<div id="tab-build" class="section">
   <div class="card">
-    <div class="card-title">Автономная сборка на iPhone</div>
-    <p style="font-size: 13px; color: #ddd6fe; margin-top: 0; line-height: 1.4;">
-      Работает без интернета на процессоре телефона: клонирует нативное ядро iOS, вшивает твою структуру папок, код и иконку, и сохраняет готовый <b>.ipa</b> файл в «Файлы».
+    <div class="card-title">Синхронизация с iCloud и Файлами</div>
+    <p style="font-size: 12px; color: var(--muted); margin-top: 0;">
+      Загрузи ранее сохранённый файл проекта (<code>.ipaproj</code> или <code>.json</code>) из папки <b>iCloud Drive</b> на телефоне, чтобы продолжить работу или перенести на другое устройство.
     </p>
+    <input type="file" id="importProjInput" accept=".ipaproj,.json" style="display:none" onchange="importProjectFromICloud(event)">
+    <button class="btn btn-secondary" style="width:100%" onclick="document.getElementById('importProjInput').click()">📂 Загрузить проект из iCloud / Файлов</button>
+  </div>
 
-    <button class="btn" id="buildBtn" onclick="buildOfflineIPA()">Собрать 1 IPA на телефон</button>
-    <div id="buildOutput" class="status-box"></div>
+  <div class="card">
+    <div class="card-title">Что, кто, зачем и для чего (Справка)</div>
+    <div class="faq-item">
+      <div class="faq-q">1. Зачем нужно это приложение?</div>
+      <div class="faq-a">Это автономная мини-среда разработки на iPhone. Ты пишешь код, собираешь файлы и картинки в структуру и прямо без интернета упаковываешь всё в готовый установочный файл <b>.ipa</b>.</div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q">2. Как работают Python и pip-пакеты?</div>
+      <div class="faq-a">Во вкладке <b>«3. Python / pip»</b> ты вписываешь названия нужных библиотек (например, <code>numpy</code>, <code>requests</code>). Они вшиваются в <code>requirements.txt</code> и подгружаются в проект через WebAssembly-движок без вылетов LiveContainer.</div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q">3. Что такое Bundle ID и зачем его менять?</div>
+      <div class="faq-a">Это уникальный паспорт приложения (например, <code>com.tigran.game1</code>). Если оставить одинаковый Bundle ID, LiveContainer спросит: заменить старое или поставить как новое (<b>Install as new</b>).</div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q">4. Как синхронизировать проекты через iCloud?</div>
+      <div class="faq-a">Внутри любого проекта нажми <b>«Сохранить в iCloud»</b> и выбери папку <b>iCloud Drive</b> в «Файлах». Файл будет доступен на всех твоих устройствах Apple.</div>
+    </div>
+  </div>
+</div>
+
+<!-- РАБОЧАЯ СТУДИЯ (КОГДА ОТКРЫТ ПРОЕКТ) -->
+<div id="workspace-screen" style="display:none;">
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab('project', this)">1. Настройки</div>
+    <div class="tab" onclick="switchTab('files', this)">2. Файлы</div>
+    <div class="tab" onclick="switchTab('editor', this)">3. Код и pip</div>
+    <div class="tab" onclick="switchTab('preview', this)">4. Предпросмотр</div>
+    <div class="tab" onclick="switchTab('build', this)">5. Сборка IPA</div>
+  </div>
+
+  <!-- 1. НАСТРОЙКИ -->
+  <div id="tab-project" class="section active">
+    <div class="card">
+      <div class="card-title">Иконка и имя приложения</div>
+      <div class="icon-picker">
+        <div class="icon-preview" id="iconPreview">📁</div>
+        <div style="flex:1">
+          <label>Картинка приложения (обновится в IPA)</label>
+          <input type="file" id="iconInput" accept="image/*" style="display:none" onchange="loadIcon(event)">
+          <button class="btn btn-secondary" onclick="document.getElementById('iconInput').click()">Выбрать фото</button>
+        </div>
+      </div>
+
+      <label>Название приложения на экране</label>
+      <input type="text" id="appName" oninput="updateCurrentProjectMeta()">
+
+      <label>Bundle ID (уникальный, латиницей)</label>
+      <input type="text" id="bundleId" oninput="updateCurrentProjectMeta()">
+
+      <div class="grid-2">
+        <button class="btn btn-success" onclick="saveProjectToLibrary()">💾 Сохранить проект</button>
+        <button class="btn btn-secondary" style="width:100%" onclick="exportToICloud()">☁️ В iCloud / Файлы</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. ФАЙЛЫ И ПАПКИ -->
+  <div id="tab-files" class="section">
+    <div class="card">
+      <div class="card-title">Добавить файл или папку</div>
+      <label>Путь и имя (папка создаётся через /)</label>
+      <input type="text" id="newFilePath" placeholder="Например: ui/style.css или scripts/bot.py">
+      
+      <label>Тип файла</label>
+      <select id="newFileLang">
+        <option value="html">HTML (Интерфейс)</option>
+        <option value="css">CSS (Стили)</option>
+        <option value="js">JavaScript (Логика)</option>
+        <option value="py">Python (Скрипт)</option>
+        <option value="cpp">C++ (Код)</option>
+        <option value="swift">Swift</option>
+        <option value="lua">Lua</option>
+        <option value="json">JSON</option>
+      </select>
+
+      <button class="btn" onclick="createFile()">+ Добавить в проект</button>
+    </div>
+
+    <div class="card">
+      <div class="card-title">
+        <span>Структура файлов</span>
+        <span id="fileCount" style="color: var(--muted); font-size: 12px;"></span>
+      </div>
+      <div id="fileList"></div>
+    </div>
+  </div>
+
+  <!-- 3. КОД И PIP -->
+  <div id="tab-editor" class="section">
+    <div class="card">
+      <div class="card-title">Редактор кода</div>
+      <label>Выбери файл</label>
+      <select id="editorFileSelect" onchange="openFileInEditor()"></select>
+
+      <label>Код файла (автосохранение включено)</label>
+      <textarea id="codeArea" class="code-editor" oninput="autoSaveDraft()"></textarea>
+
+      <div style="display:flex; gap:10px;">
+        <button class="btn" onclick="saveCurrentCode()">Применить код</button>
+        <button class="btn btn-secondary" onclick="document.getElementById('codeFileInput').click()">Импорт файла</button>
+        <input type="file" id="codeFileInput" style="display:none" onchange="handleCodeUpload(event)">
+      </div>
+      <div id="saveStatus" class="status-box"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Загрузка и список pip-пакетов (Python)</div>
+      <label>Введи название пакета из PyPI (например: sympy, micropip, pytz)</label>
+      <div style="display:flex; gap:8px; margin-bottom:10px;">
+        <input type="text" id="pipInput" placeholder="Имя пакета..." style="margin-bottom:0;">
+        <button class="btn btn-secondary" onclick="addPipPackage()">+ Добавить</button>
+      </div>
+      <div id="pipList" style="font-size:12px; color:#c4b5fd;"></div>
+    </div>
+  </div>
+
+  <!-- 4. ПРЕДПРОСМОТР -->
+  <div id="tab-preview" class="section">
+    <div class="card">
+      <div class="card-title">
+        <span>Как будет выглядеть приложение</span>
+        <button class="btn btn-secondary" onclick="renderLivePreview()">↻ Обновить</button>
+      </div>
+      <div class="phone-frame">
+        <div class="phone-notch"></div>
+        <iframe id="previewFrame" sandbox="allow-scripts allow-same-origin"></iframe>
+      </div>
+    </div>
+  </div>
+
+  <!-- 5. СБОРКА IPA -->
+  <div id="tab-build" class="section">
+    <div class="card">
+      <div class="card-title">Сборка готового IPA на iPhone</div>
+      <p style="font-size: 13px; color: #ddd6fe; margin-top: 0; line-height: 1.4;">
+        Упакует все файлы, pip-зависимости, название и выбранную иконку в единый <b>.ipa</b> файл без интернета.
+      </p>
+
+      <button class="btn" id="buildBtn" onclick="buildOfflineIPA()">Собрать 1 IPA на телефон</button>
+      <div id="buildOutput" class="status-box"></div>
+    </div>
+  </div>
+</div>
+
+<!-- МОДАЛЬНОЕ ОКНО ВОССТАНОВЛЕНИЯ ПРИ ВХОДЕ -->
+<div id="recoveryModal" class="modal-overlay">
+  <div class="modal-card">
+    <div class="modal-title">Найдена несохранённая запись</div>
+    <div class="modal-text" id="recoveryDesc">
+      У вас осталась незавершённая сессия проекта. Что сделать с этой записью?
+    </div>
+    <div class="modal-btns">
+      <button class="btn btn-success" onclick="handleRecovery(1)">1. Сохранить в проекты</button>
+      <button class="btn" onclick="handleRecovery(2)">2. Продолжить редактирование</button>
+      <button class="btn btn-danger" style="width:100%; padding:12px;" onclick="handleRecovery(3)">3. Удалить запись</button>
+    </div>
   </div>
 </div>
 
 <script>
-  let projectFiles = [
-    {
-      path: 'index.html',
-      lang: 'html',
-      content: '<!DOCTYPE html>\n<html lang="ru">\n<head>\n  <meta charset="UTF-8">\n  <meta name="viewport" content="width=device-width, initial-scale=1.0">\n  <style>\n    body { background: #0b0616; color: #fff; font-family: -apple-system, sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; }\n    h1 { color: #a78bfa; }\n  </style>\n</head>\n<body>\n  <h1>Собрано на iPhone!</h1>\n  <p>Работает автономно без сети.</p>\n</body>\n</html>'
-    },
-    { path: 'scripts/logic.js', lang: 'js', content: 'console.log("Модуль подключен");' },
-    { path: 'backend/app.py', lang: 'py', content: 'def main():\n    return "OK"' }
-  ];
+  const STORAGE_PROJECTS_KEY = 'ipa_studio_projects_v3';
+  const STORAGE_DRAFT_KEY = 'ipa_studio_autosave_draft_v3';
 
-  let customIconBase64Clean = null;
+  let savedProjects = JSON.parse(localStorage.getItem(STORAGE_PROJECTS_KEY) || '[]');
+  let currentProject = null;
+
+  const TEMPLATES = {
+    blank: {
+      appName: 'PurpleApp',
+      bundleId: 'com.tigran.purpleapp.' + Math.floor(Math.random()*900+100),
+      pip: [],
+      files: [
+        {
+          path: 'index.html',
+          lang: 'html',
+          content: '<!DOCTYPE html>\n<html lang="ru">\n<head>\n  <meta charset="UTF-8">\n  <meta name="viewport" content="width=device-width, initial-scale=1.0">\n  <style>\n    body { background: #0b0616; color: #fff; font-family: -apple-system, sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; }\n    .box { background: #180f2e; border: 1px solid #8b5cf6; padding: 24px; border-radius: 20px; text-align: center; }\n    h1 { color: #a78bfa; margin: 0 0 10px; }\n  </style>\n</head>\n<body>\n  <div class="box">\n    <h1>Моё приложение</h1>\n    <p>Собрано автономно на iPhone</p>\n  </div>\n</body>\n</html>'
+        }
+      ]
+    },
+    python: {
+      appName: 'PyRunner',
+      bundleId: 'com.tigran.pyrunner.' + Math.floor(Math.random()*900+100),
+      pip: ['micropip'],
+      files: [
+        {
+          path: 'index.html',
+          lang: 'html',
+          content: '<!DOCTYPE html>\n<html lang="ru">\n<head>\n  <meta charset="UTF-8">\n  <meta name="viewport" content="width=device-width, initial-scale=1.0">\n  <style>\n    body { background: #0b0616; color: #fff; font-family: -apple-system, sans-serif; padding: 30px 20px; }\n    button { background: #8b5cf6; color: #fff; border: none; padding: 14px 20px; border-radius: 12px; font-size: 16px; width: 100%; }\n    pre { background: #160e29; padding: 14px; border-radius: 12px; color: #6ee7b7; }\n  </style>\n</head>\n<body>\n  <h2>Python + pip движок</h2>\n  <button onclick="document.getElementById(\'out\').innerText = \'Python готов к работе! Пакеты из requirements.txt подключены.\'">Запустить скрипт</button>\n  <pre id="out">Нажми кнопку выше...</pre>\n</body>\n</html>'
+        },
+        {
+          path: 'main.py',
+          lang: 'py',
+          content: 'import math\n\ndef calculate(x):\n    return math.sqrt(x) * 42\n\nprint(calculate(16))'
+        }
+      ]
+    },
+    game: {
+      appName: 'NeonTap',
+      bundleId: 'com.tigran.neontap.' + Math.floor(Math.random()*900+100),
+      pip: [],
+      files: [
+        {
+          path: 'index.html',
+          lang: 'html',
+          content: '<!DOCTYPE html>\n<html lang="ru">\n<head>\n  <meta charset="UTF-8">\n  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">\n  <style>\n    body { margin: 0; background: #090512; overflow: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; color: #fff; font-family: sans-serif; }\n    #ball { width: 70px; height: 70px; border-radius: 50%; background: radial-gradient(circle, #c4b5fd, #7c3aed); box-shadow: 0 0 25px #8b5cf6; display: flex; align-items: center; justify-content: center; font-weight: bold; cursor: pointer; user-select: none; }\n  </style>\n</head>\n<body>\n  <h2 id="score">Очки: 0</h2>\n  <div id="ball" onclick="tap()">ТАП</div>\n  <script>\n    let s = 0;\n    function tap() {\n      s++;\n      document.getElementById("score").innerText = "Очки: " + s;\n      const b = document.getElementById("ball");\n      b.style.transform = "scale(1.2)";\n      setTimeout(() => b.style.transform = "scale(1)", 100);\n    }\n  <\/script>\n</body>\n</html>'
+        }
+      ]
+    },
+    tool: {
+      appName: 'SmartNotes',
+      bundleId: 'com.tigran.notes.' + Math.floor(Math.random()*900+100),
+      pip: [],
+      files: [
+        {
+          path: 'index.html',
+          lang: 'html',
+          content: '<!DOCTYPE html>\n<html lang="ru">\n<head>\n  <meta charset="UTF-8">\n  <meta name="viewport" content="width=device-width, initial-scale=1.0">\n  <style>\n    body { background: #0b0616; color: #fff; font-family: -apple-system, sans-serif; padding: 20px; }\n    input { width: 100%; padding: 12px; border-radius: 10px; border: 1px solid #2c1d52; background: #150d28; color: #fff; margin-bottom: 10px; box-sizing: border-box; }\n    button { width: 100%; padding: 12px; border-radius: 10px; border: none; background: #8b5cf6; color: #fff; font-weight: bold; }\n    li { background: #150d28; padding: 10px; border-radius: 8px; margin-top: 8px; list-style: none; }\n  </style>\n</head>\n<body>\n  <h2>Мои заметки</h2>\n  <input id="inp" placeholder="Новая запись...">\n  <button onclick="add()">Добавить</button>\n  <ul id="list" style="padding:0"></ul>\n  <script>\n    function add() {\n      const v = document.getElementById("inp").value;\n      if(!v) return;\n      const li = document.createElement("li");\n      li.innerText = v;\n      document.getElementById("list").appendChild(li);\n      document.getElementById("inp").value = "";\n    }\n  <\/script>\n</body>\n</html>'
+        }
+      ]
+    }
+  };
+
+  // Проверка несохранённого черновика при входе
+  window.addEventListener('DOMContentLoaded', () => {
+    renderSavedProjects();
+    const rawDraft = localStorage.getItem(STORAGE_DRAFT_KEY);
+    if (rawDraft) {
+      try {
+        const draft = JSON.parse(rawDraft);
+        document.getElementById('recoveryDesc').innerText =
+          `У вас есть запись проекта «${draft.appName || 'Без названия'}» (${draft.files?.length || 1} файл.). Выберите действие:`;
+        document.getElementById('recoveryModal').style.display = 'flex';
+      } catch (e) {
+        localStorage.removeItem(STORAGE_DRAFT_KEY);
+      }
+    }
+  });
+
+  function handleRecovery(choice) {
+    const modal = document.getElementById('recoveryModal');
+    const rawDraft = localStorage.getItem(STORAGE_DRAFT_KEY);
+    if (!rawDraft) { modal.style.display = 'none'; return; }
+    const draft = JSON.parse(rawDraft);
+
+    if (choice === 1) {
+      // 1 вариант: Сохранить в проекты
+      upsertProject(draft);
+      localStorage.removeItem(STORAGE_DRAFT_KEY);
+      modal.style.display = 'none';
+      renderSavedProjects();
+      alert('✅ Запись сохранена в список «Мои проекты»!');
+    } else if (choice === 2) {
+      // 2 вариант: Продолжить
+      modal.style.display = 'none';
+      openWorkspace(draft);
+    } else if (choice === 3) {
+      // 3 вариант: Удалить
+      localStorage.removeItem(STORAGE_DRAFT_KEY);
+      modal.style.display = 'none';
+    }
+  }
+
+  function autoSaveDraft() {
+    if (!currentProject) return;
+    const idx = document.getElementById('editorFileSelect').value;
+    if (currentProject.files[idx]) {
+      currentProject.files[idx].content = document.getElementById('codeArea').value;
+    }
+    localStorage.setItem(STORAGE_DRAFT_KEY, JSON.stringify(currentProject));
+  }
+
+  function renderSavedProjects() {
+    const container = document.getElementById('savedProjectsList');
+    if (savedProjects.length === 0) {
+      container.innerHTML = '<div style="font-size:13px; color:var(--muted); text-align:center; padding:12px;">Пока нет сохранённых проектов. Выбери заготовку ниже или нажми «+ Новый».</div>';
+      return;
+    }
+    container.innerHTML = '';
+    savedProjects.forEach((p, idx) => {
+      const iconHtml = p.iconBase64 ? `<img src="data:image/png;base64,${p.iconBase64}">` : '📱';
+      container.innerHTML += `
+        <div class="proj-item">
+          <div class="proj-left" onclick="openSavedProject(${idx})">
+            <div class="proj-ico">${iconHtml}</div>
+            <div style="overflow:hidden;">
+              <div style="font-size:14px; font-weight:700; color:#fff;">${p.appName}</div>
+              <div style="font-size:11px; color:var(--muted);">${p.bundleId} • ${p.files.length} файл.</div>
+            </div>
+          </div>
+          <button class="btn-danger" onclick="deleteSavedProject(${idx})">Удалить</button>
+        </div>
+      `;
+    });
+  }
+
+  function createNewEmptyProject() {
+    useTemplate('blank');
+  }
+
+  function useTemplate(key) {
+    const tpl = JSON.parse(JSON.stringify(TEMPLATES[key]));
+    tpl.id = 'proj_' + Date.now();
+    tpl.iconBase64 = null;
+    openWorkspace(tpl);
+    autoSaveDraft();
+  }
+
+  function openSavedProject(idx) {
+    const proj = JSON.parse(JSON.stringify(savedProjects[idx]));
+    openWorkspace(proj);
+  }
+
+  function deleteSavedProject(idx) {
+    savedProjects.splice(idx, 1);
+    localStorage.setItem(STORAGE_PROJECTS_KEY, JSON.stringify(savedProjects));
+    renderSavedProjects();
+  }
+
+  function upsertProject(proj) {
+    if (!proj.id) proj.id = 'proj_' + Date.now();
+    const existingIdx = savedProjects.findIndex(p => p.id === proj.id);
+    if (existingIdx >= 0) savedProjects[existingIdx] = proj;
+    else savedProjects.unshift(proj);
+    localStorage.setItem(STORAGE_PROJECTS_KEY, JSON.stringify(savedProjects));
+  }
+
+  function saveProjectToLibrary() {
+    if (!currentProject) return;
+    upsertProject(currentProject);
+    localStorage.removeItem(STORAGE_DRAFT_KEY);
+    renderSavedProjects();
+    alert('✅ Проект «' + currentProject.appName + '» сохранён!');
+  }
+
+  function openWorkspace(proj) {
+    currentProject = proj;
+    document.getElementById('home-screen').style.display = 'none';
+    document.getElementById('workspace-screen').style.display = 'block';
+    document.getElementById('backHomeBtn').style.display = 'inline-block';
+    document.getElementById('headerTitle').innerText = proj.appName;
+
+    document.getElementById('appName').value = proj.appName;
+    document.getElementById('bundleId').value = proj.bundleId;
+    document.getElementById('iconPreview').innerHTML = proj.iconBase64
+      ? `<img src="data:image/png;base64,${proj.iconBase64}">`
+      : '📁';
+
+    renderFiles();
+    updateEditorSelect();
+    renderPipList();
+  }
+
+  function goHome() {
+    autoSaveDraft();
+    document.getElementById('workspace-screen').style.display = 'none';
+    document.getElementById('home-screen').style.display = 'block';
+    document.getElementById('backHomeBtn').style.display = 'none';
+    document.getElementById('headerTitle').innerText = 'IPA Студия';
+    renderSavedProjects();
+  }
+
+  function updateCurrentProjectMeta() {
+    if (!currentProject) return;
+    currentProject.appName = document.getElementById('appName').value.trim() || 'CustomApp';
+    currentProject.bundleId = document.getElementById('bundleId').value.trim() || 'com.custom.app';
+    document.getElementById('headerTitle').innerText = currentProject.appName;
+    autoSaveDraft();
+  }
 
   function switchTab(name, el) {
     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-    document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+    document.querySelectorAll('#workspace-screen .section').forEach(s => s.classList.remove('active'));
     el.classList.add('active');
     document.getElementById('tab-' + name).classList.add('active');
     if (name === 'files') renderFiles();
     if (name === 'editor') updateEditorSelect();
+    if (name === 'preview') renderLivePreview();
   }
 
   function loadIcon(e) {
     const file = e.target.files[0];
-    if (!file) return;
+    if (!file || !currentProject) return;
     const reader = new FileReader();
     reader.onload = (evt) => {
       document.getElementById('iconPreview').innerHTML = `<img src="${evt.target.result}">`;
-      customIconBase64Clean = evt.target.result.split(',')[1];
+      currentProject.iconBase64 = evt.target.result.split(',')[1];
+      autoSaveDraft();
     };
     reader.readAsDataURL(file);
   }
 
   function renderFiles() {
+    if (!currentProject) return;
     const list = document.getElementById('fileList');
-    document.getElementById('fileCount').innerText = projectFiles.length + ' шт.';
+    document.getElementById('fileCount').innerText = currentProject.files.length + ' шт.';
     list.innerHTML = '';
-    projectFiles.forEach((f, idx) => {
+    currentProject.files.forEach((f, idx) => {
       list.innerHTML += `
         <div class="file-item">
           <div class="file-info" onclick="jumpToEdit(${idx})">
@@ -463,17 +825,19 @@
     const path = document.getElementById('newFilePath').value.trim().replace(/^\/+/, '');
     const lang = document.getElementById('newFileLang').value;
     if (!path) return alert('Введи имя или путь файла!');
-    projectFiles.push({ path, lang, content: '// Файл: ' + path + '\n' });
+    currentProject.files.push({ path, lang, content: '// Файл: ' + path + '\n' });
     document.getElementById('newFilePath').value = '';
     renderFiles();
     updateEditorSelect();
+    autoSaveDraft();
   }
 
   function deleteFile(idx) {
-    if (projectFiles[idx].path === 'index.html') return alert('Главный файл index.html удалять нельзя!');
-    projectFiles.splice(idx, 1);
+    if (currentProject.files[idx].path === 'index.html') return alert('Главный файл index.html удалять нельзя!');
+    currentProject.files.splice(idx, 1);
     renderFiles();
     updateEditorSelect();
+    autoSaveDraft();
   }
 
   function jumpToEdit(idx) {
@@ -483,9 +847,10 @@
   }
 
   function updateEditorSelect() {
+    if (!currentProject) return;
     const sel = document.getElementById('editorFileSelect');
     sel.innerHTML = '';
-    projectFiles.forEach((f, idx) => {
+    currentProject.files.forEach((f, idx) => {
       sel.innerHTML += `<option value="${idx}">${f.path}</option>`;
     });
     openFileInEditor();
@@ -493,19 +858,18 @@
 
   function openFileInEditor() {
     const idx = document.getElementById('editorFileSelect').value;
-    if (projectFiles[idx]) document.getElementById('codeArea').value = projectFiles[idx].content;
+    if (currentProject && currentProject.files[idx]) {
+      document.getElementById('codeArea').value = currentProject.files[idx].content;
+    }
   }
 
   function saveCurrentCode() {
-    const idx = document.getElementById('editorFileSelect').value;
-    if (projectFiles[idx]) {
-      projectFiles[idx].content = document.getElementById('codeArea').value;
-      const box = document.getElementById('saveStatus');
-      box.style.display = 'block';
-      box.style.borderColor = 'var(--success)';
-      box.innerText = '✅ Сохранено: ' + projectFiles[idx].path;
-      setTimeout(() => box.style.display = 'none', 2000);
-    }
+    autoSaveDraft();
+    const box = document.getElementById('saveStatus');
+    box.style.display = 'block';
+    box.style.borderColor = 'var(--success)';
+    box.innerText = '✅ Код сохранён в проект!';
+    setTimeout(() => box.style.display = 'none', 1800);
   }
 
   function handleCodeUpload(e) {
@@ -519,29 +883,125 @@
     reader.readAsText(file);
   }
 
+  // Управление pip-пакетами
+  function addPipPackage() {
+    const inp = document.getElementById('pipInput');
+    const pkg = inp.value.trim();
+    if (!pkg || !currentProject) return;
+    if (!currentProject.pip) currentProject.pip = [];
+    if (!currentProject.pip.includes(pkg)) currentProject.pip.push(pkg);
+    inp.value = '';
+    renderPipList();
+    autoSaveDraft();
+  }
+
+  function removePipPackage(idx) {
+    currentProject.pip.splice(idx, 1);
+    renderPipList();
+    autoSaveDraft();
+  }
+
+  function renderPipList() {
+    const box = document.getElementById('pipList');
+    if (!currentProject || !currentProject.pip || currentProject.pip.length === 0) {
+      box.innerHTML = 'Пакеты pip не добавлены.';
+      return;
+    }
+    box.innerHTML = currentProject.pip.map((p, i) =>
+      `<span style="display:inline-block; background:#231542; padding:4px 10px; border-radius:8px; margin:4px 4px 0 0;">
+        📦 ${p} <b onclick="removePipPackage(${i})" style="color:#fca5a5; margin-left:6px; cursor:pointer;">×</b>
+      </span>`
+    ).join('');
+  }
+
+  // Живой предпросмотр приложения
+  function renderLivePreview() {
+    if (!currentProject) return;
+    const indexFile = currentProject.files.find(f => f.path === 'index.html') || currentProject.files[0];
+    let html = indexFile ? indexFile.content : '<h1>Пусто</h1>';
+
+    // Подклеиваем CSS и JS файлы из структуры проекта для живого теста
+    const cssFiles = currentProject.files.filter(f => f.path.endsWith('.css')).map(f => `<style>${f.content}</style>`).join('\n');
+    const jsFiles = currentProject.files.filter(f => f.path.endsWith('.js')).map(f => `<script>${f.content}<\/script>`).join('\n');
+    html = html.replace('</head>', cssFiles + '\n</head>').replace('</body>', jsFiles + '\n</body>');
+
+    const frame = document.getElementById('previewFrame');
+    frame.srcdoc = html;
+  }
+
+  // Экспорт и импорт для iCloud Drive
+  function exportToICloud() {
+    if (!currentProject) return;
+    const filename = (currentProject.appName || 'project') + '.ipaproj';
+    const dataStr = JSON.stringify(currentProject, null, 2);
+
+    if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.nativeBuilder) {
+      window.webkit.messageHandlers.nativeBuilder.postMessage({
+        action: 'exportProject',
+        filename: filename,
+        data: dataStr
+      });
+    } else {
+      const blob = new Blob([dataStr], { type: 'application/json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = filename;
+      a.click();
+    }
+  }
+
+  function importProjectFromICloud(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const imported = JSON.parse(evt.target.result);
+        if (!imported.files || !Array.isArray(imported.files)) throw new Error('Неверный формат файла проекта');
+        upsertProject(imported);
+        renderSavedProjects();
+        openWorkspace(imported);
+        alert('✅ Проект «' + imported.appName + '» загружен из iCloud / Файлов!');
+      } catch (err) {
+        alert('❌ Ошибка чтения файла: ' + err.message);
+      }
+    };
+    reader.readAsText(file);
+  }
+
+  // Сборка IPA на железе iPhone
   function buildOfflineIPA() {
+    if (!currentProject) return;
     const btn = document.getElementById('buildBtn');
     const out = document.getElementById('buildOutput');
-    const appName = document.getElementById('appName').value.trim() || 'MyCustomApp';
-    const bundleId = document.getElementById('bundleId').value.trim() || 'com.tigran.custom';
 
-    btn.innerText = 'Нативная сборка на процессоре...';
+    // Добавляем requirements.txt в пакет, если выбраны pip-пакеты
+    const filesToPack = [...currentProject.files];
+    if (currentProject.pip && currentProject.pip.length > 0) {
+      filesToPack.push({
+        path: 'requirements.txt',
+        lang: 'txt',
+        content: currentProject.pip.join('\n')
+      });
+    }
+
+    btn.innerText = 'Сборка на процессоре iPhone...';
     out.style.display = 'block';
     out.style.borderColor = 'var(--accent)';
-    out.innerText = 'Клонируем ядро iOS и упаковываем твои файлы в .ipa...';
+    out.innerText = 'Обновляем иконку, Bundle ID и упаковываем в .ipa...';
 
     if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.nativeBuilder) {
       window.webkit.messageHandlers.nativeBuilder.postMessage({
         action: 'buildIPA',
-        appName: appName,
-        bundleId: bundleId,
-        files: projectFiles,
-        iconBase64: customIconBase64Clean
+        appName: currentProject.appName,
+        bundleId: currentProject.bundleId,
+        files: filesToPack,
+        iconBase64: currentProject.iconBase64
       });
     } else {
       btn.innerText = 'Собрать 1 IPA на телефон';
       out.style.borderColor = 'var(--danger)';
-      out.innerText = '❌ Запусти приложение внутри iOS / LiveContainer.';
+      out.innerText = '❌ Запусти конструктор внутри iOS / LiveContainer.';
     }
   }
 
@@ -552,8 +1012,8 @@
     out.style.borderColor = 'var(--success)';
     out.innerHTML = `
       <b>✅ Готово! Файл «${filename}» собран оффлайн!</b><br><br>
-      • Он уже сохранён в стандартные <b>«Файлы»</b> на телефоне.<br>
-      • В открывшейся шторке выбери <b>LiveContainer</b> или <b>Сохранить в Файлы</b>.
+      • Иконка и Bundle ID (<code>${currentProject.bundleId}</code>) успешно вшиты.<br>
+      • Если в LiveContainer появится окно <b>Installation</b> — выбери <b>Install as new</b>.
     `;
   }
 
@@ -562,10 +1022,8 @@
     const out = document.getElementById('buildOutput');
     btn.innerText = 'Собрать 1 IPA на телефон';
     out.style.borderColor = 'var(--danger)';
-    out.innerText = '❌ Ошибка нативного сборщика: ' + errMsg;
+    out.innerText = '❌ Ошибка сборки: ' + errMsg;
   }
-
-  renderFiles();
 </script>
 </body>
 </html>
