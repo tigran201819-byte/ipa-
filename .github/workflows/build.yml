@@ -24,29 +24,6 @@ jobs:
         run: |
           brew install xcodegen
 
-      - name: Скачивание готового ядра Python для iOS
-        run: |
-          mkdir -p Frameworks
-          curl -L https://github.com/beeware/Python-Apple-support/releases/download/3.11-b8/Python-3.11-iOS-support.b8.tar.gz -o python-ios.tar.gz
-          tar -xzf python-ios.tar.gz -C Frameworks/
-          rm python-ios.tar.gz
-
-      - name: Установка пакетов из pip
-        run: |
-          mkdir -p app_code/site-packages
-          if [ -s app_code/requirements.txt ]; then
-            python3 -m pip install --break-system-packages -r app_code/requirements.txt --target app_code/site-packages --no-deps || python3 -m pip install --break-system-packages -r app_code/requirements.txt --target app_code/site-packages
-          fi
-
-      - name: Компиляция C++ кода
-        run: |
-          if ls app_code/*.cpp 1> /dev/null 2>&1; then
-            clang++ -shared -fPIC -O3 -arch arm64 \
-              -isysroot $(xcrun --sdk iphoneos --show-sdk-path) \
-              -miphoneos-version-min=15.0 \
-              app_code/*.cpp -o app_code/libnative.dylib
-          fi
-
       - name: Генерация Xcode проекта
         run: |
           CLEAN_NAME=$(echo "${{ github.event.inputs.app_name }}" | tr -cd '[:alnum:]_-')
@@ -67,9 +44,7 @@ jobs:
             build
 
           APP_DIR="build_out/${CLEAN_NAME}.app"
-          find "$APP_DIR" -type f \( -name "*.dylib" -o -name "*.so" -o -name "Python" \) -exec codesign --force --sign - {} \;
           codesign --force --deep --sign - "$APP_DIR"
-          codesign -vvv --deep --strict "$APP_DIR"
 
           mkdir -p out_ipa/Payload
           cp -r "$APP_DIR" out_ipa/Payload/
