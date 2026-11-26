@@ -52,16 +52,16 @@ class MainViewController: UIViewController {
     func startPythonEngine() {
         guard let resourcePath = Bundle.main.resourcePath else { return }
         let appCodePath = resourcePath + "/app_code"
-        let stdLibPath = resourcePath + "/python-stdlib"
+        let frameworkPath = resourcePath + "/Frameworks/Python.framework"
         
-        setenv("PYTHONHOME", resourcePath, 1)
-        setenv("PYTHONPATH", "\\(stdLibPath):\\(appCodePath):\\(appCodePath)/site-packages", 1)
+        setenv("PYTHONHOME", frameworkPath, 1)
+        setenv("PYTHONPATH", "\\(appCodePath):\\(appCodePath)/site-packages", 1)
         
         DispatchQueue.global(qos: .userInitiated).async {
             Py_Initialize()
             let script = """
             import sys, os
-            os.chdir('\(appCodePath)')
+            os.chdir('\\(appCodePath)')
             import main
             """
             PyRun_SimpleString(script)
@@ -91,8 +91,6 @@ targets:
       - path: Sources
       - path: app_code
         type: folder
-      - path: Frameworks/python-stdlib
-        type: folder
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: {bundle_id}
@@ -108,3 +106,4 @@ targets:
 
 with open("project.yml", "w") as f:
     f.write(project_yml)
+_
