@@ -1,74 +1,108 @@
-name: Build Universal IPA
+import sys
+import os
 
-on:
-  workflow_dispatch:
-    inputs:
-      app_name:
-        description: 'Название приложения'
-        required: true
-        default: 'MyCustomApp'
-      bundle_id:
-        description: 'Bundle ID (на латинице)'
-        required: true
-        default: 'com.tigran.myapp'
+app_name = sys.argv[1]
+bundle_id = sys.argv[2]
 
-jobs:
-  build-ipa:
-    runs-on: macos-latest
+os.makedirs("Sources", exist_ok=True)
 
-    steps:
-      - name: Загрузка файлов репозитория
-        uses: actions/checkout@v4
+swift_code = '''import UIKit
+import WebKit
 
-      - name: Установка XcodeGen
-        run: |
-          brew install xcodegen
+@main
+class AppDelegate: UIResponder, UIApplicationDelegate {
+    var window: UIWindow?
 
-      - name: Скачивание готового ядра Python для iOS
-        run: |
-          mkdir -p Frameworks
-          curl -L https://github.com/beeware/Python-Apple-support/releases/download/3.11-b8/Python-3.11-iOS-support.b8.tar.gz -o python-ios.tar.gz
-          tar -xzf python-ios.tar.gz -C Frameworks/
-          rm python-ios.tar.gz
+    func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
+        window = UIWindow(frame: UIScreen.main.bounds)
+        window?.rootViewController = MainViewController()
+        window?.makeKeyAndVisible()
+        return true
+    }
+}
 
-      - name: Установка пакетов из pip
-        run: |
-          mkdir -p app_code/site-packages
-          if [ -s app_code/requirements.txt ]; then
-            python3 -m pip install --break-system-packages -r app_code/requirements.txt --target app_code/site-packages --no-deps || python3 -m pip install --break-system-packages -r app_code/requirements.txt --target app_code/site-packages
-          fi
+class MainViewController: UIViewController {
+    var webView: WKWebView!
 
-      - name: Компиляция C++ кода
-        run: |
-          if ls app_code/*.cpp 1> /dev/null 2>&1; then
-            clang++ -shared -fPIC -O3 -arch arm64 \
-              -isysroot $(xcrun --sdk iphoneos --show-sdk-path) \
-              -miphoneos-version-min=15.0 \
-              app_code/*.cpp -o app_code/libnative.dylib
-          fi
+    override var preferredStatusBarStyle: UIStatusBarStyle {
+        return .lightContent
+    }
 
-      - name: Генерация Xcode проекта
-        run: |
-          python3 setup_project.py "${{ github.event.inputs.app_name }}" "${{ github.event.inputs.bundle_id }}"
-          xcodegen generate
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        view.backgroundColor = .black
 
-      - name: Сборка и упаковка в IPA
-        run: |
-          xcodebuild -project "${{ github.event.inputs.app_name }}.xcodeproj" \
-            -scheme "${{ github.event.inputs.app_name }}" \
-            -configuration Release \
-            -sdk iphoneos \
-            -destination 'generic/platform=iOS' \
-            CODE_SIGNING_ALLOWED=NO \
-            CONFIGURATION_BUILD_DIR=build_out \
-            build
+        let config = WKWebViewConfiguration()
+        config.preferences.setValue(true, forKey: "allowFileAccessFromFileURLs")
+        
+        webView = WKWebView(frame: view.bounds, configuration: config)
+        webView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        webView.backgroundColor = .black
+        webView.isOpaque = false
+        view.addSubview(webView)
 
-          mkdir -p Payload
-          cp -r "build_out/${{ github.event.inputs.app_name }}.app" Payload/
-          zip -r "${{ github.event.inputs.app_name }}.ipa" Payload
+        startPythonEngine()
 
-      - name: Сохранение готового IPA
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ github.event.inputs.app_name }}-IPA
-          path: "*.ipa"
+        if let htmlPath = Bundle.main.path(forResource: "index", ofType: "html", inDirectory: "app_code") {
+            let url = URL(fileURLWithPath: htmlPath)
+            webView.loadFileURL(url, allowingReadAccessTo: url.deletingLastPathComponent())
+        }
+    }
+
+    func startPythonEngine() {
+        guard let resourcePath = Bundle.main.resourcePath else { return }
+        let appCodePath = resourcePath + "/app_code"
+        let frameworkPath = resourcePath + "/Frameworks/Python.framework"
+        
+        setenv("PYTHONHOME", frameworkPath, 1)
+        setenv("PYTHONPATH", "\\(appCodePath):\\(appCodePath)/site-packages", 1)
+        
+        DispatchQueue.global(qos: .userInitiated).async {
+            Py_Initialize()
+            let script = """
+            import sys, os
+            os.chdir('\\(appCodePath)')
+            import main
+            """
+            PyRun_SimpleString(script)
+        }
+    }
+}
+'''
+
+bridging_header = '''#import <Python/Python.h>
+'''
+
+with open("Sources/App.swift", "w") as f:
+    f.write(swift_code)
+
+with open("Sources/Bridging-Header.h", "w") as f:
+    f.write(bridging_header)
+
+project_yml = f'''name: {app_name}
+options:
+  bundleIdPrefix: com.custom
+targets:
+  {app_name}:
+    type: application
+    platform: iOS
+    deploymentTarget: "15.0"
+    sources:
+      - path: Sources
+      - path: app_code
+        type: folder
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: {bundle_id}
+        SWIFT_OBJC_BRIDGING_HEADER: Sources/Bridging-Header.h
+        ENABLE_BITCODE: NO
+        CODE_SIGNING_ALLOWED: NO
+        INFOPLIST_KEY_UIUserInterfaceStyle: Dark
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+    dependencies:
+      - framework: Frameworks/Python.xcframework
+        embed: true
+'''
+
+with open("project.yml", "w") as f:
+    f.write(project_yml)
