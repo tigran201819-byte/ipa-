@@ -55,7 +55,7 @@ jobs:
           python3 setup_project.py "$CLEAN_NAME" "$CLEAN_BUNDLE"
           xcodegen generate
 
-      - name: Сборка и упаковка в IPA
+      - name: Сборка, авто-подпись и упаковка в IPA
         run: |
           xcodebuild -project "${CLEAN_NAME}.xcodeproj" \
             -scheme "${CLEAN_NAME}" \
@@ -66,8 +66,13 @@ jobs:
             CONFIGURATION_BUILD_DIR=build_out \
             build
 
+          APP_DIR="build_out/${CLEAN_NAME}.app"
+          find "$APP_DIR" -type f \( -name "*.dylib" -o -name "*.so" -o -name "Python" \) -exec codesign --force --sign - {} \;
+          codesign --force --deep --sign - "$APP_DIR"
+          codesign -vvv --deep --strict "$APP_DIR"
+
           mkdir -p out_ipa/Payload
-          cp -r "build_out/${CLEAN_NAME}.app" out_ipa/Payload/
+          cp -r "$APP_DIR" out_ipa/Payload/
           cd out_ipa && zip -r "../${CLEAN_NAME}.ipa" Payload
           cd .. && ls -lh "${CLEAN_NAME}.ipa"
 
