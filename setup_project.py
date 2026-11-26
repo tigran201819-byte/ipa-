@@ -75,7 +75,11 @@ class MainViewController: UIViewController, WKScriptMessageHandler {
 
         if let htmlPath = Bundle.main.path(forResource: "index", ofType: "html", inDirectory: "app_code") {
             let url = URL(fileURLWithPath: htmlPath)
-            webView.loadFileURL(url, allowingReadAccessTo: url.deletingLastPathComponent())
+            if let htmlStr = try? String(contentsOf: url, encoding: .utf8) {
+                webView.loadHTMLString(htmlStr, baseURL: url.deletingLastPathComponent())
+            } else {
+                webView.loadFileURL(url, allowingReadAccessTo: url.deletingLastPathComponent())
+            }
         }
     }
 
@@ -164,7 +168,6 @@ class MainViewController: UIViewController, WKScriptMessageHandler {
             let name = entry.name
             if name.hasSuffix("/") { continue }
 
-            // Проверка на FairPlay DRM шифрование (.sinf / .supf)
             if name.contains("SC_Info/") || name.hasSuffix(".sinf") || name.hasSuffix(".supf") {
                 warnings.append("Обнаружена защита Apple FairPlay DRM: расшифровка бинарника невозможна.")
             }
@@ -172,7 +175,6 @@ class MainViewController: UIViewController, WKScriptMessageHandler {
             let fileName = (name as NSString).lastPathComponent
             let ext = (fileName as NSString).pathExtension.lowercased()
 
-            // Читаем Info.plist
             if name.hasSuffix(".app/Info.plist") {
                 if let plistDict = try? PropertyListSerialization.propertyList(from: entry.data, options: [], format: nil) as? [String: Any] {
                     if let dName = plistDict["CFBundleDisplayName"] as? String ?? plistDict["CFBundleName"] as? String {
@@ -185,7 +187,6 @@ class MainViewController: UIViewController, WKScriptMessageHandler {
                 continue
             }
 
-            // Вытаскиваем иконку
             if (fileName.contains("AppIcon") || fileName.lowercased().contains("icon")) && ext == "png" && foundIconB64.isEmpty {
                 if UIImage(data: entry.data) != nil {
                     foundIconB64 = entry.data.base64EncodedString()
@@ -193,12 +194,10 @@ class MainViewController: UIViewController, WKScriptMessageHandler {
                 continue
             }
 
-            // Пропускаем служебные файлы подписи
             if name.contains("_CodeSignature/") || name.hasSuffix(".mobileprovision") || name.hasSuffix("Assets.car") || name.hasSuffix(".nib") {
                 continue
             }
 
-            // Вытаскиваем исходный код
             if textExts.contains(ext) {
                 if let text = String(data: entry.data, encoding: .utf8) {
                     var cleanPath = fileName
@@ -216,7 +215,6 @@ class MainViewController: UIViewController, WKScriptMessageHandler {
                     warnings.append("Не удалось загрузить код \\(fileName). Ошибка: расшифровка")
                 }
             } else if ext.isEmpty || ext == "dylib" || ext == "framework" {
-                // Скомпилированный исполняемый файл или зашифрованный бинарник
                 if !fileName.hasPrefix("libswift") {
                     warnings.append("Не удалось загрузить код \\(fileName). Ошибка: расшифровка (скомпилированный / зашифрованный код)")
                 }
@@ -266,7 +264,6 @@ class MainViewController: UIViewController, WKScriptMessageHandler {
             try content.write(to: fileURL, atomically: true, encoding: .utf8)
         }
 
-        // Полная замена иконки в корне .app и удаление старого кэша Assets.car
         if let b64 = iconB64, !b64.isEmpty, let rawData = Data(base64Encoded: b64), let uiImg = UIImage(data: rawData) {
             try? fm.removeItem(at: targetAppURL.appendingPathComponent("Assets.car"))
             let iconSpecs: [(String, CGFloat)] = [
@@ -324,7 +321,6 @@ class PureSwiftZip {
         let count = data.count
         if count < 22 { return results }
 
-        // Ищем EOCD с конца файла
         var eocdOffset = -1
         for i in stride(from: count - 22, through: max(0, count - 65557), by: -1) {
             if data.readUInt32(at: i) == 0x06054b50 {
