@@ -3,14 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>IPA Студия</title>
+<title>IPA Студия (Offline)</title>
 <style>
   :root {
-    --bg: #0c0718;
-    --card: #160e29;
+    --bg: #0b0616;
+    --card: #150d28;
     --card-border: #2c1d52;
     --accent: #8b5cf6;
-    --accent-hover: #7c3aed;
     --accent-glow: rgba(139, 92, 246, 0.35);
     --text: #f5f3ff;
     --muted: #a78bfa;
@@ -40,7 +39,7 @@
 
   .header h1 {
     margin: 0;
-    font-size: 22px;
+    font-size: 21px;
     font-weight: 700;
     background: linear-gradient(90deg, #fff, #c4b5fd);
     -webkit-background-clip: text;
@@ -48,13 +47,13 @@
   }
 
   .badge {
-    background: rgba(139, 92, 246, 0.2);
-    border: 1px solid var(--accent);
-    color: #ddd6fe;
+    background: rgba(16, 185, 129, 0.18);
+    border: 1px solid var(--success);
+    color: #6ee7b7;
     padding: 4px 10px;
     border-radius: 20px;
-    font-size: 12px;
-    font-weight: 600;
+    font-size: 11px;
+    font-weight: 700;
   }
 
   .tabs {
@@ -74,7 +73,6 @@
     font-weight: 600;
     white-space: nowrap;
     cursor: pointer;
-    transition: 0.2s;
   }
 
   .tab.active {
@@ -125,17 +123,11 @@
     font-family: inherit;
   }
 
-  input:focus, select:focus, textarea:focus {
-    border-color: var(--accent);
-    box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.2);
-  }
-
   textarea.code-editor {
     font-family: "SF Mono", Menlo, monospace;
     font-size: 13px;
     min-height: 230px;
     line-height: 1.45;
-    resize: vertical;
   }
 
   .icon-picker {
@@ -154,7 +146,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 24px;
+    font-size: 26px;
     overflow: hidden;
     flex-shrink: 0;
   }
@@ -176,7 +168,6 @@
     font-weight: 600;
     cursor: pointer;
     box-shadow: 0 6px 20px var(--accent-glow);
-    transition: 0.15s;
   }
 
   .btn:active { transform: scale(0.98); }
@@ -217,6 +208,7 @@
     align-items: center;
     gap: 10px;
     overflow: hidden;
+    flex: 1;
   }
 
   .lang-tag {
@@ -270,7 +262,7 @@
     border: 1px solid var(--card-border);
     font-size: 13px;
     color: #ddd6fe;
-    line-height: 1.4;
+    line-height: 1.45;
     display: none;
   }
 </style>
@@ -279,132 +271,242 @@
 
 <div class="header">
   <h1>IPA Конструктор</h1>
-  <span class="badge">v2.0 Purple</span>
+  <span class="badge">OFFLINE • iOS</span>
 </div>
 
 <div class="tabs">
   <div class="tab active" onclick="switchTab('project', this)">1. Приложение</div>
   <div class="tab" onclick="switchTab('files', this)">2. Файлы и папки</div>
-  <div class="tab" onclick="switchTab('editor', this)">3. Редактор кода</div>
-  <div class="tab" onclick="switchTab('build', this)">4. Сборка IPA</div>
+  <div class="tab" onclick="switchTab('editor', this)">3. Код</div>
+  <div class="tab" onclick="switchTab('build', this)">4. Собрать IPA</div>
 </div>
 
-<!-- ВКЛАДКА 1: НАСТРОЙКИ ПРИЛОЖЕНИЯ -->
+<!-- 1. НАСТРОЙКИ -->
 <div id="tab-project" class="section active">
   <div class="card">
-    <div class="card-title">Внешний вид и имя</div>
+    <div class="card-title">Иконка и название</div>
     <div class="icon-picker">
       <div class="icon-preview" id="iconPreview">📁</div>
       <div style="flex:1">
-        <label>Картинка / Иконка приложения</label>
+        <label>Картинка приложения</label>
         <input type="file" id="iconInput" accept="image/*" style="display:none" onchange="loadIcon(event)">
-        <button class="btn btn-secondary" onclick="document.getElementById('iconInput').click()">Выбрать картинку</button>
+        <button class="btn btn-secondary" onclick="document.getElementById('iconInput').click()">Выбрать с телефона</button>
       </div>
     </div>
 
-    <label>Название приложения на экране iPhone</label>
-    <input type="text" id="appName" value="МоёПриложение" placeholder="Например: CryptoTool">
+    <label>Название приложения</label>
+    <input type="text" id="appName" value="MyApp" placeholder="Например: GameTool">
 
-    <label>Bundle ID (уникальный идентификатор)</label>
-    <input type="text" id="bundleId" value="com.tigran.customapp" placeholder="com.name.app">
+    <label>Bundle ID (латиницей)</label>
+    <input type="text" id="bundleId" value="com.tigran.myapp" placeholder="com.name.app">
   </div>
 
   <div class="card">
-    <div class="card-title">Активные языки в проекте</div>
-    <div class="lang-grid" id="langGrid">
-      <div class="lang-chip selected" onclick="toggleLang(this, 'HTML/CSS')">HTML / CSS</div>
-      <div class="lang-chip selected" onclick="toggleLang(this, 'JavaScript')">JavaScript</div>
-      <div class="lang-chip selected" onclick="toggleLang(this, 'Python')">Python + pip</div>
-      <div class="lang-chip" onclick="toggleLang(this, 'C++')">C++ (ARM64)</div>
-      <div class="lang-chip" onclick="toggleLang(this, 'C')">C / Clang</div>
-      <div class="lang-chip" onclick="toggleLang(this, 'Swift')">Swift UI</div>
-      <div class="lang-chip" onclick="toggleLang(this, 'Lua')">Lua Script</div>
-      <div class="lang-chip" onclick="toggleLang(this, 'TypeScript')">TypeScript</div>
-      <div class="lang-chip" onclick="toggleLang(this, 'SQL')">SQLite / SQL</div>
+    <div class="card-title">Языки в проекте</div>
+    <div class="lang-grid">
+      <div class="lang-chip selected" onclick="this.classList.toggle('selected')">HTML / CSS</div>
+      <div class="lang-chip selected" onclick="this.classList.toggle('selected')">JavaScript</div>
+      <div class="lang-chip selected" onclick="this.classList.toggle('selected')">Python</div>
+      <div class="lang-chip" onclick="this.classList.toggle('selected')">C++</div>
+      <div class="lang-chip" onclick="this.classList.toggle('selected')">C / Objective-C</div>
+      <div class="lang-chip" onclick="this.classList.toggle('selected')">Swift</div>
+      <div class="lang-chip" onclick="this.classList.toggle('selected')">Lua</div>
+      <div class="lang-chip" onclick="this.classList.toggle('selected')">TypeScript</div>
+      <div class="lang-chip" onclick="this.classList.toggle('selected')">JSON / SQL</div>
     </div>
-    <div style="font-size: 12px; color: var(--muted);">Выбранные языки автоматически свяжутся при упаковке структуры в единый .ipa.</div>
   </div>
 </div>
 
-<!-- ВКЛАДКА 2: ФАЙЛЫ И ПАПКИ -->
+<!-- 2. ФАЙЛЫ И ПАПКИ -->
 <div id="tab-files" class="section">
   <div class="card">
-    <div class="card-title">Добавить файл или папку</div>
-    <label>Путь (папка/имя_файла.расширение)</label>
-    <input type="text" id="newFilePath" placeholder="Например: logic/core.cpp или ui/style.css">
+    <div class="card-title">Создать файл в структуре</div>
+    <label>Путь и имя (папка создастся сама через /)</label>
+    <input type="text" id="newFilePath" placeholder="Например: ui/style.css или core/main.py">
     
-    <label>Язык / Тип файла</label>
+    <label>Язык файла</label>
     <select id="newFileLang">
-      <option value="html">HTML (Интерфейс)</option>
+      <option value="html">HTML (Экран)</option>
       <option value="css">CSS (Стили)</option>
       <option value="js">JavaScript (Логика)</option>
       <option value="py">Python (Скрипт)</option>
-      <option value="cpp">C++ (Нативный код)</option>
-      <option value="c">C (Ядро)</option>
-      <option value="swift">Swift (Модуль iOS)</option>
-      <option value="lua">Lua (Сценарий)</option>
-      <option value="txt">requirements.txt (Пакеты pip)</option>
-      <option value="json">JSON (Конфиг)</option>
+      <option value="cpp">C++ (Плюсы)</option>
+      <option value="c">C (Си)</option>
+      <option value="swift">Swift</option>
+      <option value="lua">Lua</option>
+      <option value="json">JSON</option>
     </select>
 
-    <button class="btn" onclick="createFile()">+ Создать в структуре</button>
+    <button class="btn" onclick="createFile()">+ Добавить в структуру</button>
   </div>
 
   <div class="card">
     <div class="card-title">
-      <span>Структура проекта</span>
-      <span id="fileCount" style="color: var(--muted); font-size: 12px;">3 файла</span>
+      <span>Файлы внутри IPA</span>
+      <span id="fileCount" style="color: var(--muted); font-size: 12px;"></span>
     </div>
     <div id="fileList"></div>
   </div>
 </div>
 
-<!-- ВКЛАДКА 3: РЕДАКТОР КОДА -->
+<!-- 3. РЕДАКТОР КОДА -->
 <div id="tab-editor" class="section">
   <div class="card">
-    <div class="card-title">Редактирование файла</div>
-    <label>Выбери файл из структуры</label>
+    <div class="card-title">Редактор кода</div>
+    <label>Файл для редактирования</label>
     <select id="editorFileSelect" onchange="openFileInEditor()"></select>
 
-    <label>Код файла</label>
-    <textarea id="codeArea" class="code-editor" placeholder="Вставь сюда свой код..."></textarea>
+    <label>Исходный код</label>
+    <textarea id="codeArea" class="code-editor" placeholder="Вставь или напиши код..."></textarea>
 
     <div style="display:flex; gap:10px;">
-      <button class="btn" onclick="saveCurrentCode()">Сохранить код</button>
-      <button class="btn btn-secondary" onclick="importFromDevice()">Загрузить файл</button>
+      <button class="btn" onclick="saveCurrentCode()">Сохранить</button>
+      <button class="btn btn-secondary" onclick="document.getElementById('codeFileInput').click()">Импорт файла</button>
       <input type="file" id="codeFileInput" style="display:none" onchange="handleCodeUpload(event)">
     </div>
     <div id="saveStatus" class="status-box"></div>
   </div>
 </div>
 
-<!-- ВКЛАДКА 4: СБОРКА IPA -->
+<!-- 4. ОФФЛАЙН СБОРКА IPA -->
 <div id="tab-build" class="section">
   <div class="card">
-    <div class="card-title">Сборка единого IPA файла</div>
-    <p style="font-size: 13px; color: #ddd6fe; margin-top: 0;">
-      Все созданные папки, код на разных языках, иконка и название объединятся в единый пакет приложения.
+    <div class="card-title">Автономная сборка на iPhone</div>
+    <p style="font-size: 13px; color: #ddd6fe; margin-top: 0; line-height: 1.4;">
+      Работает без интернета на процессоре телефона: берет встроенное ядро iOS, вшивает твою структуру папок, код и иконку, и сохраняет готовый <b>.ipa</b> файл.
     </p>
 
-    <label>GitHub Token (необязательно — для авто-сборки в 1 клик)</label>
-    <input type="text" id="ghToken" placeholder="ghp_xxxxxxxxxxxx">
-
-    <label>Репозиторий (логин/репозиторий)</label>
-    <input type="text" id="ghRepo" placeholder="username/ipa-">
-
-    <button class="btn" onclick="buildProject()">Собрать и упаковать в 1 IPA</button>
+    <button class="btn" id="buildBtn" onclick="buildOfflineIPA()">Собрать 1 IPA на телефон</button>
     <div id="buildOutput" class="status-box"></div>
   </div>
 </div>
 
 <script>
+  // Встроенный оффлайн ZIP-сборщик (без внешних библиотек и сети)
+  const crcTable = (() => {
+    let c, table = [];
+    for (let n = 0; n < 256; n++) {
+      c = n;
+      for (let k = 0; k < 8; k++) c = ((c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1));
+      table[n] = c;
+    }
+    return table;
+  })();
+
+  function crc32(buf) {
+    let crc = 0 ^ (-1);
+    for (let i = 0; i < buf.length; i++) crc = (crc >>> 8) ^ crcTable[(crc ^ buf[i]) & 0xFF];
+    return (crc ^ (-1)) >>> 0;
+  }
+
+  function parseZip(buffer) {
+    const view = new DataView(buffer);
+    const bytes = new Uint8Array(buffer);
+    let eocdOffset = -1;
+    for (let i = bytes.length - 22; i >= 0; i--) {
+      if (view.getUint32(i, true) === 0x06054b50) { eocdOffset = i; break; }
+    }
+    if (eocdOffset === -1) throw new Error("Неверный формат шаблона IPA");
+    const totalEntries = view.getUint16(eocdOffset + 10, true);
+    let cdOffset = view.getUint32(eocdOffset + 16, true);
+    const entries = [];
+
+    for (let i = 0; i < totalEntries; i++) {
+      const compMethod = view.getUint16(cdOffset + 10, true);
+      const compSize = view.getUint32(cdOffset + 20, true);
+      const uncompSize = view.getUint32(cdOffset + 24, true);
+      const nameLen = view.getUint16(cdOffset + 28, true);
+      const extraLen = view.getUint16(cdOffset + 30, true);
+      const commentLen = view.getUint16(cdOffset + 32, true);
+      const localHeaderOffset = view.getUint32(cdOffset + 42, true);
+      const name = new TextDecoder().decode(bytes.slice(cdOffset + 46, cdOffset + 46 + nameLen));
+
+      const lNameLen = view.getUint16(localHeaderOffset + 26, true);
+      const lExtraLen = view.getUint16(localHeaderOffset + 28, true);
+      const dataStart = localHeaderOffset + 30 + lNameLen + lExtraLen;
+      const rawData = bytes.slice(dataStart, dataStart + compSize);
+
+      entries.push({ name, compMethod, compSize, uncompSize, rawData, crc: view.getUint32(cdOffset + 16, true) });
+      cdOffset += 46 + nameLen + extraLen + commentLen;
+    }
+    return entries;
+  }
+
+  async function decompressRaw(rawData) {
+    const ds = new DecompressionStream("deflate-raw");
+    const writer = ds.writable.getWriter();
+    writer.write(rawData);
+    writer.close();
+    const res = await new Response(ds.readable).arrayBuffer();
+    return new Uint8Array(res);
+  }
+
+  function createZipBlob(filesList) {
+    const encoder = new TextEncoder();
+    const localParts = [];
+    const cdParts = [];
+    let offset = 0;
+
+    for (const f of filesList) {
+      const nameBytes = encoder.encode(f.name);
+      const data = f.data;
+      const crc = f.crc !== undefined ? f.crc : crc32(data);
+      const method = f.compMethod || 0;
+      const uncompSize = f.uncompSize !== undefined ? f.uncompSize : data.length;
+
+      const lh = new Uint8Array(30 + nameBytes.length);
+      const lv = new DataView(lh.buffer);
+      lv.setUint32(0, 0x04034b50, true);
+      lv.setUint16(4, 20, true);
+      lv.setUint16(8, method, true);
+      lv.setUint32(14, crc, true);
+      lv.setUint32(18, data.length, true);
+      lv.setUint32(22, uncompSize, true);
+      lv.setUint16(26, nameBytes.length, true);
+      lh.set(nameBytes, 30);
+
+      localParts.push(lh, data);
+
+      const cd = new Uint8Array(46 + nameBytes.length);
+      const cv = new DataView(cd.buffer);
+      cv.setUint32(0, 0x02014b50, true);
+      cv.setUint16(4, 20, true);
+      cv.setUint16(6, 20, true);
+      cv.setUint16(10, method, true);
+      cv.setUint32(16, crc, true);
+      cv.setUint32(20, data.length, true);
+      cv.setUint32(24, uncompSize, true);
+      cv.setUint16(28, nameBytes.length, true);
+      cv.setUint32(42, offset, true);
+      cd.set(nameBytes, 46);
+
+      cdParts.push(cd);
+      offset += lh.length + data.length;
+    }
+
+    const cdSize = cdParts.reduce((a, b) => a + b.length, 0);
+    const eocd = new Uint8Array(22);
+    const ev = new DataView(eocd.buffer);
+    ev.setUint32(0, 0x06054b50, true);
+    ev.setUint16(8, filesList.length, true);
+    ev.setUint16(10, filesList.length, true);
+    ev.setUint32(12, cdSize, true);
+    ev.setUint32(16, offset, true);
+
+    return new Blob([...localParts, ...cdParts, eocd], { type: "application/octet-stream" });
+  }
+
   let projectFiles = [
-    { path: 'index.html', lang: 'html', content: '<!DOCTYPE html>\n<html lang="ru">\n<head>\n  <meta charset="UTF-8">\n  <title>App</title>\n</head>\n<body>\n  <h1>Привет из нового IPA!</h1>\n</body>\n</html>' },
-    { path: 'backend/main.py', lang: 'py', content: 'def run():\n    return "Python модуль подключен"' },
-    { path: 'native/fast.cpp', lang: 'cpp', content: 'extern "C" int calc(int x) { return x * 2; }' }
+    {
+      path: 'index.html',
+      lang: 'html',
+      content: '<!DOCTYPE html>\n<html lang="ru">\n<head>\n  <meta charset="UTF-8">\n  <meta name="viewport" content="width=device-width, initial-scale=1.0">\n  <style>\n    body { background: #0b0616; color: #fff; font-family: -apple-system, sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; }\n    h1 { color: #a78bfa; }\n  </style>\n</head>\n<body>\n  <h1>Собрано на iPhone!</h1>\n  <p>Работает автономно без сети.</p>\n</body>\n</html>'
+    },
+    { path: 'scripts/logic.js', lang: 'js', content: 'console.log("Модуль подключен");' },
+    { path: 'backend/app.py', lang: 'py', content: 'def main():\n    return "OK"' }
   ];
 
-  let appIconBase64 = null;
+  let customIconBytes = null;
 
   function switchTab(name, el) {
     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
@@ -415,24 +517,25 @@
     if (name === 'editor') updateEditorSelect();
   }
 
-  function toggleLang(el, lang) {
-    el.classList.toggle('selected');
-  }
-
   function loadIcon(e) {
     const file = e.target.files[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = function(evt) {
-      appIconBase64 = evt.target.result;
-      document.getElementById('iconPreview').innerHTML = `<img src="${appIconBase64}">`;
+    const readerUrl = new FileReader();
+    readerUrl.onload = (evt) => {
+      document.getElementById('iconPreview').innerHTML = `<img src="${evt.target.result}">`;
     };
-    reader.readAsDataURL(file);
+    readerUrl.readAsDataURL(file);
+
+    const readerBuf = new FileReader();
+    readerBuf.onload = (evt) => {
+      customIconBytes = new Uint8Array(evt.target.result);
+    };
+    readerBuf.readAsArrayBuffer(file);
   }
 
   function renderFiles() {
     const list = document.getElementById('fileList');
-    document.getElementById('fileCount').innerText = projectFiles.length + ' файл(ов)';
+    document.getElementById('fileCount').innerText = projectFiles.length + ' шт.';
     list.innerHTML = '';
     projectFiles.forEach((f, idx) => {
       list.innerHTML += `
@@ -448,16 +551,17 @@
   }
 
   function createFile() {
-    const path = document.getElementById('newFilePath').value.trim();
+    const path = document.getElementById('newFilePath').value.trim().replace(/^\/+/, '');
     const lang = document.getElementById('newFileLang').value;
-    if (!path) return alert('Введи путь и имя файла!');
-    projectFiles.push({ path, lang, content: '// Новый файл: ' + path + '\n' });
+    if (!path) return alert('Введи имя или путь файла!');
+    projectFiles.push({ path, lang, content: '// Файл: ' + path + '\n' });
     document.getElementById('newFilePath').value = '';
     renderFiles();
     updateEditorSelect();
   }
 
   function deleteFile(idx) {
+    if (projectFiles[idx].path === 'index.html') return alert('Главный файл index.html удалять нельзя!');
     projectFiles.splice(idx, 1);
     renderFiles();
     updateEditorSelect();
@@ -473,16 +577,14 @@
     const sel = document.getElementById('editorFileSelect');
     sel.innerHTML = '';
     projectFiles.forEach((f, idx) => {
-      sel.innerHTML += `<option value="${idx}">${f.path} (${f.lang.toUpperCase()})</option>`;
+      sel.innerHTML += `<option value="${idx}">${f.path}</option>`;
     });
     openFileInEditor();
   }
 
   function openFileInEditor() {
     const idx = document.getElementById('editorFileSelect').value;
-    if (projectFiles[idx]) {
-      document.getElementById('codeArea').value = projectFiles[idx].content;
-    }
+    if (projectFiles[idx]) document.getElementById('codeArea').value = projectFiles[idx].content;
   }
 
   function saveCurrentCode() {
@@ -492,55 +594,116 @@
       const box = document.getElementById('saveStatus');
       box.style.display = 'block';
       box.style.borderColor = 'var(--success)';
-      box.innerText = '✅ Файл "' + projectFiles[idx].path + '" сохранён в структуру!';
-      setTimeout(() => box.style.display = 'none', 2500);
+      box.innerText = '✅ Сохранено: ' + projectFiles[idx].path;
+      setTimeout(() => box.style.display = 'none', 2000);
     }
-  }
-
-  function importFromDevice() {
-    document.getElementById('codeFileInput').click();
   }
 
   function handleCodeUpload(e) {
     const file = e.target.files[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = function(evt) {
+    reader.onload = (evt) => {
       document.getElementById('codeArea').value = evt.target.result;
       saveCurrentCode();
     };
     reader.readAsText(file);
   }
 
-  async function buildProject() {
-    const name = document.getElementById('appName').value.trim() || 'MyApp';
-    const bundle = document.getElementById('bundleId').value.trim() || 'com.custom.app';
+  async function buildOfflineIPA() {
+    const btn = document.getElementById('buildBtn');
     const out = document.getElementById('buildOutput');
+    const appName = document.getElementById('appName').value.trim() || 'MyCustomApp';
+    const bundleId = document.getElementById('bundleId').value.trim() || 'com.tigran.custom';
+
+    btn.innerText = 'Собираем IPA на процессоре...';
     out.style.display = 'block';
-
-    const manifest = {
-      appName: name,
-      bundleId: bundle,
-      hasCustomIcon: !!appIconBase64,
-      filesCount: projectFiles.length,
-      structure: projectFiles.map(f => ({ path: f.path, lang: f.lang, size: f.content.length }))
-    };
-
-    const blob = new Blob([JSON.stringify({ manifest, files: projectFiles, icon: appIconBase64 }, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = name + '_bundle.json';
-    a.click();
-
     out.style.borderColor = 'var(--accent)';
-    out.innerHTML = `
-      <b>🟣 Структура проекта «${name}» собрана!</b><br><br>
-      • Bundle ID: <code>${bundle}</code><br>
-      • Файлов в связке: <b>${projectFiles.length}</b><br>
-      • Иконка: <b>${appIconBase64 ? 'Загружена своя' : 'Стандартная фиолетовая'}</b><br><br>
-      Единый пакет проекта выгружен. Закинь файлы в <code>app_code/</code> на GitHub и запусти <b>Build Universal IPA</b> — на выходе получишь готовый <b>${name}.ipa</b> с твоей иконкой!
-    `;
+    out.innerText = 'Читаем встроенное ядро из памяти устройства...';
+
+    try {
+      const resp = await fetch('base_template.ipa');
+      if (!resp.ok) throw new Error('Встроенный шаблон base_template.ipa не найден внутри бандла');
+      const tplBuffer = await resp.arrayBuffer();
+      const entries = parseZip(tplBuffer);
+
+      let appFolderPrefix = '';
+      for (const e of entries) {
+        const m = e.name.match(/^(Payload\/[^\/]+\.app\/)/);
+        if (m) { appFolderPrefix = m[1]; break; }
+      }
+      if (!appFolderPrefix) throw new Error('Не найдена папка .app внутри шаблона');
+
+      const encoder = new TextEncoder();
+      const newZipFiles = [];
+
+      for (const e of entries) {
+        // Пропускаем старые файлы внутри app_code/ шаблона и старую иконку если загружена новая
+        if (e.name.startsWith(appFolderPrefix + 'app_code/')) continue;
+        if (customIconBytes && e.name.includes('AppIcon60x60@3x.png')) continue;
+
+        if (e.name === appFolderPrefix + 'Info.plist') {
+          let rawPlist = e.compMethod === 8 ? await decompressRaw(e.rawData) : e.rawData;
+          let plistText = new TextDecoder().decode(rawPlist);
+          if (plistText.includes('<?xml')) {
+            plistText = plistText.replace(/<key>CFBundleDisplayName<\/key>\s*<string>.*?<\/string>/, `<key>CFBundleDisplayName</key><string>${appName}</string>`);
+            plistText = plistText.replace(/<key>CFBundleIdentifier<\/key>\s*<string>.*?<\/string>/, `<key>CFBundleIdentifier</key><string>${bundleId}</string>`);
+            const pBytes = encoder.encode(plistText);
+            newZipFiles.push({ name: e.name, data: pBytes, compMethod: 0 });
+            continue;
+          }
+        }
+
+        newZipFiles.push({
+          name: e.name,
+          data: e.rawData,
+          compMethod: e.compMethod,
+          uncompSize: e.uncompSize,
+          crc: e.crc
+        });
+      }
+
+      // Добавляем все пользовательские файлы в app_code/
+      for (const pf of projectFiles) {
+        const fBytes = encoder.encode(pf.content);
+        newZipFiles.push({
+          name: appFolderPrefix + 'app_code/' + pf.path,
+          data: fBytes,
+          compMethod: 0
+        });
+      }
+
+      // Добавляем новую иконку, если выбрана
+      if (customIconBytes) {
+        newZipFiles.push({
+          name: appFolderPrefix + 'app_code/AppIcon60x60@3x.png',
+          data: customIconBytes,
+          compMethod: 0
+        });
+      }
+
+      const ipaBlob = createZipBlob(newZipFiles);
+      const url = URL.createObjectURL(ipaBlob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = appName + '.ipa';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+
+      btn.innerText = 'Собрать 1 IPA на телефон';
+      out.style.borderColor = 'var(--success)';
+      out.innerHTML = `
+        <b>✅ Готово! Файл «${appName}.ipa» создан оффлайн!</b><br><br>
+        • Упаковано файлов: <b>${projectFiles.length}</b><br>
+        • Сборка выполнена локально без интернета.<br>
+        Сохрани файл в <b>«Файлы»</b> и открой в <b>LiveContainer</b>.
+      `;
+    } catch (err) {
+      btn.innerText = 'Собрать 1 IPA на телефон';
+      out.style.borderColor = 'var(--danger)';
+      out.innerText = '❌ Ошибка сборки: ' + err.message;
+    }
   }
 
   renderFiles();
