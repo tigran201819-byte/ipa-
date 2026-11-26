@@ -38,7 +38,6 @@ with open("Assets.xcassets/Contents.json", "w") as f:
 
 swift_code = '''import UIKit
 import WebKit
-import Compression
 
 @main
 class AppDelegate: UIResponder, UIApplicationDelegate {
@@ -95,12 +94,7 @@ class MainViewController: UIViewController, WKScriptMessageHandler {
                     let ipaURL = try self.assembleIPAOnDevice(appName: appName, bundleId: bundleId, files: files, iconB64: iconB64)
                     DispatchQueue.main.async {
                         self.webView.evaluateJavaScript("onNativeBuildSuccess('\\(ipaURL.lastPathComponent)')")
-                        let activityVC = UIActivityViewController(activityItems: [ipaURL], applicationActivities: nil)
-                        if let popover = activityVC.popoverPresentationController {
-                            popover.sourceView = self.view
-                            popover.sourceRect = CGRect(x: self.view.bounds.midX, y: self.view.bounds.midY, width: 0, height: 0)
-                        }
-                        self.present(activityVC, animated: true)
+                        self.shareFile(url: ipaURL)
                     }
                 } catch {
                     let msg = error.localizedDescription.replacingOccurrences(of: "'", with: "")
@@ -109,7 +103,33 @@ class MainViewController: UIViewController, WKScriptMessageHandler {
                     }
                 }
             }
+        } else if action == "exportProject" {
+            let filename = (payload["filename"] as? String) ?? "project.ipaproj"
+            let jsonString = (payload["data"] as? String) ?? "{}"
+            let docsDir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+            let fileURL = docsDir.appendingPathComponent(filename)
+            try? jsonString.write(to: fileURL, atomically: true, encoding: .utf8)
+            DispatchQueue.main.async {
+                self.shareFile(url: fileURL)
+            }
         }
+    }
+
+    func shareFile(url: URL) {
+        let activityVC = UIActivityViewController(activityItems: [url], applicationActivities: nil)
+        if let popover = activityVC.popoverPresentationController {
+            popover.sourceView = self.view
+            popover.sourceRect = CGRect(x: self.view.bounds.midX, y: self.view.bounds.midY, width: 0, height: 0)
+        }
+        self.present(activityVC, animated: true)
+    }
+
+    func resizeImage(image: UIImage, size: CGSize) -> Data? {
+        let renderer = UIGraphicsImageRenderer(size: size)
+        let resized = renderer.image { _ in
+            image.draw(in: CGRect(origin: .zero, size: size))
+        }
+        return resized.pngData()
     }
 
     func assembleIPAOnDevice(appName: String, bundleId: String, files: [[String: String]], iconB64: String?) throws -> URL {
@@ -118,7 +138,6 @@ class MainViewController: UIViewController, WKScriptMessageHandler {
         try fm.createDirectory(at: workDir, withIntermediateDirectories: true)
         defer { try? fm.removeItem(at: workDir) }
 
-        // Обход 1: копируем текущий запущенный .app бандл напрямую из системы (даже base_template.ipa не нужен!)
         let currentAppURL = Bundle.main.bundleURL
         let payloadDir = workDir.appendingPathComponent("Payload")
         try fm.createDirectory(at: payloadDir, withIntermediateDirectories: true)
@@ -128,12 +147,10 @@ class MainViewController: UIViewController, WKScriptMessageHandler {
         let targetAppURL = payloadDir.appendingPathComponent("\\(finalAppName).app")
         try fm.copyItem(at: currentAppURL, to: targetAppURL)
 
-        // Чистим лишнее внутри копии
         let oldCodeDir = targetAppURL.appendingPathComponent("app_code")
         try? fm.removeItem(at: oldCodeDir)
         try fm.createDirectory(at: oldCodeDir, withIntermediateDirectories: true)
 
-        // Записываем все новые файлы и подпапки пользователя
         for f in files {
             guard let relPath = f["path"], let content = f["content"] else { continue }
             let fileURL = oldCodeDir.appendingPathComponent(relPath)
@@ -141,25 +158,37 @@ class MainViewController: UIViewController, WKScriptMessageHandler {
             try content.write(to: fileURL, atomically: true, encoding: .utf8)
         }
 
-        // Обновляем иконку, если пользователь выбрал свою
-        if let b64 = iconB64, let imgData = Data(base64Encoded: b64) {
-            let iconURL = oldCodeDir.appendingPathComponent("AppIcon60x60@3x.png")
-            try imgData.write(to: iconURL)
+        // Жёсткая перезапись иконки во всех местах .app бандла для iOS и LiveContainer
+        if let b64 = iconB64, let rawData = Data(base64Encoded: b64), let uiImg = UIImage(data: rawData) {
+            try? fm.removeItem(at: targetAppURL.appendingPathComponent("Assets.car"))
+            let iconNames = ["AppIcon60x60@2x.png", "AppIcon60x60@3x.png", "AppIcon76x76@2x~ipad.png", "Icon.png"]
+            let iconSizes: [CGFloat] = [120, 180, 152, 1024]
+            for (idx, name) in iconNames.enumerated() {
+                if let png = resizeImage(image: uiImg, size: CGSize(width: iconSizes[idx], height: iconSizes[idx])) {
+                    try? png.write(to: targetAppURL.appendingPathComponent(name))
+                    try? png.write(to: oldCodeDir.appendingPathComponent(name))
+                }
+            }
         }
 
-        // Обход 2: правим Info.plist через нативный PropertyListSerialization (работает и с binary plist)
         let plistURL = targetAppURL.appendingPathComponent("Info.plist")
         if let plistData = try? Data(contentsOf: plistURL),
            var plistDict = try? PropertyListSerialization.propertyList(from: plistData, options: .mutableContainersAndLeaves, format: nil) as? [String: Any] {
             plistDict["CFBundleDisplayName"] = appName
             plistDict["CFBundleName"] = appName
             plistDict["CFBundleIdentifier"] = bundleId
+            plistDict["CFBundleIconFiles"] = ["AppIcon60x60", "AppIcon76x76", "Icon"]
+            plistDict["CFBundleIcons"] = [
+                "CFBundlePrimaryIcon": [
+                    "CFBundleIconFiles": ["AppIcon60x60", "Icon"],
+                    "UIPrerenderedIcon": true
+                ]
+            ]
             if let newPlistData = try? PropertyListSerialization.data(fromPropertyList: plistDict, format: .xml, options: 0) {
                 try newPlistData.write(to: plistURL)
             }
         }
 
-        // Обход 3: пакуем Payload в .ipa нативным ZIP-архиватором и кладем в Documents
         let docsDir = fm.urls(for: .documentDirectory, in: .userDomainMask)[0]
         let outIPA = docsDir.appendingPathComponent("\\(finalAppName).ipa")
         try? fm.removeItem(at: outIPA)
@@ -169,7 +198,6 @@ class MainViewController: UIViewController, WKScriptMessageHandler {
     }
 }
 
-// Нативный оффлайн ZIP-архиватор на чистом Swift (без внешних зависимостей)
 class PureSwiftZip {
     static func zipDirectory(sourceDir: URL, destZip: URL) throws {
         let fm = FileManager.default
@@ -192,7 +220,7 @@ class PureSwiftZip {
             localHeader.appendUInt32(0x04034b50)
             localHeader.appendUInt16(20)
             localHeader.appendUInt16(0)
-            localHeader.appendUInt16(0) // Store (без сжатия — мгновенно и 100% совместимо с iOS)
+            localHeader.appendUInt16(0)
             localHeader.appendUInt16(0)
             localHeader.appendUInt16(0)
             localHeader.appendUInt32(crc)
