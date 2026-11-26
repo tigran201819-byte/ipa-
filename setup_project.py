@@ -73,11 +73,51 @@ class MainViewController: UIViewController {
 bridging_header = '''#import <Python/Python.h>
 '''
 
+info_plist = f'''<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleDevelopmentRegion</key>
+    <string>en</string>
+    <key>CFBundleDisplayName</key>
+    <string>{app_name}</string>
+    <key>CFBundleExecutable</key>
+    <string>$(EXECUTABLE_NAME)</string>
+    <key>CFBundleIdentifier</key>
+    <string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+    <key>CFBundleInfoDictionaryVersion</key>
+    <string>6.0</string>
+    <key>CFBundleName</key>
+    <string>$(PRODUCT_NAME)</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>CFBundleShortVersionString</key>
+    <string>1.0</string>
+    <key>CFBundleVersion</key>
+    <string>1</string>
+    <key>LSRequiresIPhoneOS</key>
+    <true/>
+    <key>UIUserInterfaceStyle</key>
+    <string>Dark</string>
+    <key>UILaunchScreen</key>
+    <dict/>
+    <key>NSAppTransportSecurity</key>
+    <dict>
+        <key>NSAllowsArbitraryLoads</key>
+        <true/>
+    </dict>
+</dict>
+</plist>
+'''
+
 with open("Sources/App.swift", "w") as f:
     f.write(swift_code)
 
 with open("Sources/Bridging-Header.h", "w") as f:
     f.write(bridging_header)
+
+with open("Sources/Info.plist", "w") as f:
+    f.write(info_plist)
 
 project_yml = f'''name: {app_name}
 options:
@@ -89,16 +129,18 @@ targets:
     deploymentTarget: "15.0"
     sources:
       - path: Sources
+        excludes:
+          - Info.plist
       - path: app_code
         type: folder
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: {bundle_id}
         SWIFT_OBJC_BRIDGING_HEADER: Sources/Bridging-Header.h
+        INFOPLIST_FILE: Sources/Info.plist
+        GENERATE_INFOPLIST_FILE: NO
         ENABLE_BITCODE: NO
         CODE_SIGNING_ALLOWED: NO
-        INFOPLIST_KEY_UIUserInterfaceStyle: Dark
-        INFOPLIST_KEY_UILaunchScreen_Generation: YES
     dependencies:
       - framework: Frameworks/Python.xcframework
         embed: true
