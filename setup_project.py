@@ -269,6 +269,19 @@ class MainViewController: UIViewController, WKScriptMessageHandler {
         let targetAppURL = payloadDir.appendingPathComponent("\\(finalAppName).app")
         try fm.copyItem(at: currentAppURL, to: targetAppURL)
 
+        // 1. Удаляем старую подпись и кэш ассетов родительского бандла
+        try? fm.removeItem(at: targetAppURL.appendingPathComponent("_CodeSignature"))
+        try? fm.removeItem(at: targetAppURL.appendingPathComponent("embedded.mobileprovision"))
+        try? fm.removeItem(at: targetAppURL.appendingPathComponent("Assets.car"))
+
+        let enumerator = fm.enumerator(at: targetAppURL, includingPropertiesForKeys: nil)
+        while let fileURL = enumerator?.nextObject() as? URL {
+            let name = fileURL.lastPathComponent
+            if name.hasPrefix("AppIcon") || name.hasPrefix("Icon") {
+                try? fm.removeItem(at: fileURL)
+            }
+        }
+
         let oldCodeDir = targetAppURL.appendingPathComponent("app_code")
         try? fm.removeItem(at: oldCodeDir)
         try fm.createDirectory(at: oldCodeDir, withIntermediateDirectories: true)
@@ -280,16 +293,7 @@ class MainViewController: UIViewController, WKScriptMessageHandler {
             try content.write(to: fileURL, atomically: true, encoding: .utf8)
         }
 
-        // 1. Удаляем все старые иконки и кэш ассетов родительского приложения
-        let enumerator = fm.enumerator(at: targetAppURL, includingPropertiesForKeys: nil)
-        while let fileURL = enumerator?.nextObject() as? URL {
-            let name = fileURL.lastPathComponent
-            if name.hasPrefix("AppIcon") || name.hasPrefix("Icon") || name == "Assets.car" {
-                try? fm.removeItem(at: fileURL)
-            }
-        }
-
-        // 2. Берем фото пользователя или генерируем уникальную иконку с буквой приложения
+        // 2. Рендерим новую непрозрачную иконку во все стандартные имена iOS + внутрь проекта
         let sourceImg: UIImage
         if let b64 = iconB64, !b64.isEmpty, let rawData = Data(base64Encoded: b64), let uiImg = UIImage(data: rawData) {
             sourceImg = uiImg
@@ -304,10 +308,7 @@ class MainViewController: UIViewController, WKScriptMessageHandler {
         let iconVariants: [(String, CGFloat)] = [
             ("AppIcon60x60@2x.png", 120),
             ("AppIcon60x60@3x.png", 180),
-            ("AppIcon76x76@2x~ipad.png", 152),
-            ("Icon-60@2x.png", 120),
-            ("Icon-60@3x.png", 180),
-            ("Icon.png", 512)
+            ("Icon.png", 1024)
         ]
 
         for (fileName, dim) in iconVariants {
@@ -317,10 +318,26 @@ class MainViewController: UIViewController, WKScriptMessageHandler {
             }.pngData()
             if let data = pngData {
                 try? data.write(to: targetAppURL.appendingPathComponent(fileName))
+                if fileName == "Icon.png" {
+                    // Сохраняем также в папку проекта как icon.png
+                    try? data.write(to: oldCodeDir.appendingPathComponent("icon.png"))
+                }
             }
         }
 
-        // 3. Переименовываем бинарник и обновляем Info.plist
+        // 3. Генерируем скрипт подключения иконки icon_config.js внутри проекта
+        let iconScript = """
+        window.APP_ICON_PATH = "./icon.png";
+        (function() {
+            var link = document.createElement('link');
+            link.rel = 'apple-touch-icon';
+            link.href = './icon.png';
+            document.head.appendChild(link);
+        })();
+        """
+        try? iconScript.write(to: oldCodeDir.appendingPathComponent("icon_config.js"), atomically: true, encoding: .utf8)
+
+        // 4. Обновляем Info.plist под стандарт AppIcon60x60 (без расширения .png)
         let plistURL = targetAppURL.appendingPathComponent("Info.plist")
         if let plistData = try? Data(contentsOf: plistURL),
            var plistDict = try? PropertyListSerialization.propertyList(from: plistData, options: .mutableContainersAndLeaves, format: nil) as? [String: Any] {
@@ -336,16 +353,12 @@ class MainViewController: UIViewController, WKScriptMessageHandler {
             plistDict["CFBundleName"] = appName
             plistDict["CFBundleIdentifier"] = bundleId
             plistDict.removeValue(forKey: "CFBundleIconName")
-            plistDict["CFBundleIconFiles"] = ["AppIcon60x60", "Icon-60", "Icon"]
+            plistDict.removeValue(forKey: "CFBundleIcons~ipad")
+            plistDict["CFBundleIconFile"] = "AppIcon60x60"
+            plistDict["CFBundleIconFiles"] = ["AppIcon60x60"]
             plistDict["CFBundleIcons"] = [
                 "CFBundlePrimaryIcon": [
-                    "CFBundleIconFiles": ["AppIcon60x60", "Icon-60", "Icon"],
-                    "UIPrerenderedIcon": true
-                ]
-            ]
-            plistDict["CFBundleIcons~ipad"] = [
-                "CFBundlePrimaryIcon": [
-                    "CFBundleIconFiles": ["AppIcon76x76", "AppIcon60x60", "Icon"],
+                    "CFBundleIconFiles": ["AppIcon60x60"],
                     "UIPrerenderedIcon": true
                 ]
             ]
@@ -470,7 +483,7 @@ class PureSwiftZip {
 
             var cdHeader = Data()
             cdHeader.appendUInt32(0x02014b50)
-            cdHeader.appendUInt16(20)
+            cdHeader.appendUInt16(0x0314) // Unix + ZIP 2.0
             cdHeader.appendUInt16(20)
             cdHeader.appendUInt16(0)
             cdHeader.appendUInt16(0)
@@ -484,7 +497,7 @@ class PureSwiftZip {
             cdHeader.appendUInt16(0)
             cdHeader.appendUInt16(0)
             cdHeader.appendUInt16(0)
-            cdHeader.appendUInt32(0)
+            cdHeader.appendUInt32(0x81a40000) // Права доступа rw-r--r-- (0644) для LiveContainer
             cdHeader.appendUInt32(localOffset)
             cdHeader.append(nameData)
 
