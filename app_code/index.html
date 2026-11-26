@@ -1,28 +1,549 @@
 <!DOCTYPE html>
-<html>
+<html lang="ru">
 <head>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>IPA Студия</title>
 <style>
-  body { background: #000; color: #fff; font-family: -apple-system, sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; }
-  button { background: #0a84ff; color: #fff; border: none; padding: 14px 24px; border-radius: 12px; font-size: 16px; font-weight: 600; }
-  #out { margin-top: 20px; color: #8e8e93; }
+  :root {
+    --bg: #0c0718;
+    --card: #160e29;
+    --card-border: #2c1d52;
+    --accent: #8b5cf6;
+    --accent-hover: #7c3aed;
+    --accent-glow: rgba(139, 92, 246, 0.35);
+    --text: #f5f3ff;
+    --muted: #a78bfa;
+    --danger: #ef4444;
+    --success: #10b981;
+  }
+
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif;
+    padding-bottom: 90px;
+  }
+
+  .header {
+    padding: 52px 18px 16px;
+    background: linear-gradient(180deg, #1d1138 0%, var(--bg) 100%);
+    border-bottom: 1px solid var(--card-border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .header h1 {
+    margin: 0;
+    font-size: 22px;
+    font-weight: 700;
+    background: linear-gradient(90deg, #fff, #c4b5fd);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .badge {
+    background: rgba(139, 92, 246, 0.2);
+    border: 1px solid var(--accent);
+    color: #ddd6fe;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  .tabs {
+    display: flex;
+    gap: 8px;
+    padding: 12px 16px;
+    overflow-x: auto;
+  }
+
+  .tab {
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    color: var(--muted);
+    padding: 9px 14px;
+    border-radius: 12px;
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: 0.2s;
+  }
+
+  .tab.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+    box-shadow: 0 4px 14px var(--accent-glow);
+  }
+
+  .section { display: none; padding: 0 16px; }
+  .section.active { display: block; }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    border-radius: 16px;
+    padding: 16px;
+    margin-bottom: 14px;
+  }
+
+  .card-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #ddd6fe;
+    margin-bottom: 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  label {
+    display: block;
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+
+  input[type="text"], select, textarea {
+    width: 100%;
+    background: #0e081d;
+    border: 1px solid var(--card-border);
+    border-radius: 12px;
+    color: #fff;
+    padding: 12px;
+    font-size: 14px;
+    outline: none;
+    margin-bottom: 12px;
+    font-family: inherit;
+  }
+
+  input:focus, select:focus, textarea:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.2);
+  }
+
+  textarea.code-editor {
+    font-family: "SF Mono", Menlo, monospace;
+    font-size: 13px;
+    min-height: 230px;
+    line-height: 1.45;
+    resize: vertical;
+  }
+
+  .icon-picker {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 12px;
+  }
+
+  .icon-preview {
+    width: 68px;
+    height: 68px;
+    border-radius: 16px;
+    background: #231542;
+    border: 2px dashed var(--accent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+
+  .icon-preview img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .btn {
+    width: 100%;
+    background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%);
+    color: #fff;
+    border: none;
+    padding: 14px;
+    border-radius: 14px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 6px 20px var(--accent-glow);
+    transition: 0.15s;
+  }
+
+  .btn:active { transform: scale(0.98); }
+
+  .btn-secondary {
+    background: #22163f;
+    border: 1px solid var(--card-border);
+    box-shadow: none;
+    padding: 10px 14px;
+    font-size: 13px;
+    width: auto;
+  }
+
+  .btn-danger {
+    background: rgba(239, 68, 68, 0.15);
+    border: 1px solid var(--danger);
+    color: #fca5a5;
+    padding: 6px 10px;
+    font-size: 12px;
+    border-radius: 8px;
+    width: auto;
+    box-shadow: none;
+  }
+
+  .file-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: #0e081d;
+    border: 1px solid var(--card-border);
+    padding: 10px 12px;
+    border-radius: 12px;
+    margin-bottom: 8px;
+  }
+
+  .file-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    overflow: hidden;
+  }
+
+  .lang-tag {
+    background: #2e1d59;
+    color: #c4b5fd;
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+
+  .file-path {
+    font-size: 13px;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .lang-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+
+  .lang-chip {
+    background: #0e081d;
+    border: 1px solid var(--card-border);
+    color: #ddd6fe;
+    padding: 10px 6px;
+    border-radius: 10px;
+    text-align: center;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .lang-chip.selected {
+    background: rgba(139, 92, 246, 0.25);
+    border-color: var(--accent);
+    color: #fff;
+  }
+
+  .status-box {
+    margin-top: 12px;
+    padding: 12px;
+    border-radius: 12px;
+    background: #0e081d;
+    border: 1px solid var(--card-border);
+    font-size: 13px;
+    color: #ddd6fe;
+    line-height: 1.4;
+    display: none;
+  }
 </style>
 </head>
 <body>
-  <h2>HTML + Python + C++</h2>
-  <button onclick="testBridge()">Проверить связку</button>
-  <div id="out">Ожидание...</div>
 
-  <script>
-    async function testBridge() {
-      try {
-        let res = await fetch('http://127.0.0.1:8765');
-        let data = await res.json();
-        document.getElementById('out').innerText = 'Ответ от C++ через Python: ' + data.cpp_result;
-      } catch (e) {
-        document.getElementById('out').innerText = 'Ошибка: ' + e;
-      }
+<div class="header">
+  <h1>IPA Конструктор</h1>
+  <span class="badge">v2.0 Purple</span>
+</div>
+
+<div class="tabs">
+  <div class="tab active" onclick="switchTab('project', this)">1. Приложение</div>
+  <div class="tab" onclick="switchTab('files', this)">2. Файлы и папки</div>
+  <div class="tab" onclick="switchTab('editor', this)">3. Редактор кода</div>
+  <div class="tab" onclick="switchTab('build', this)">4. Сборка IPA</div>
+</div>
+
+<!-- ВКЛАДКА 1: НАСТРОЙКИ ПРИЛОЖЕНИЯ -->
+<div id="tab-project" class="section active">
+  <div class="card">
+    <div class="card-title">Внешний вид и имя</div>
+    <div class="icon-picker">
+      <div class="icon-preview" id="iconPreview">📁</div>
+      <div style="flex:1">
+        <label>Картинка / Иконка приложения</label>
+        <input type="file" id="iconInput" accept="image/*" style="display:none" onchange="loadIcon(event)">
+        <button class="btn btn-secondary" onclick="document.getElementById('iconInput').click()">Выбрать картинку</button>
+      </div>
+    </div>
+
+    <label>Название приложения на экране iPhone</label>
+    <input type="text" id="appName" value="МоёПриложение" placeholder="Например: CryptoTool">
+
+    <label>Bundle ID (уникальный идентификатор)</label>
+    <input type="text" id="bundleId" value="com.tigran.customapp" placeholder="com.name.app">
+  </div>
+
+  <div class="card">
+    <div class="card-title">Активные языки в проекте</div>
+    <div class="lang-grid" id="langGrid">
+      <div class="lang-chip selected" onclick="toggleLang(this, 'HTML/CSS')">HTML / CSS</div>
+      <div class="lang-chip selected" onclick="toggleLang(this, 'JavaScript')">JavaScript</div>
+      <div class="lang-chip selected" onclick="toggleLang(this, 'Python')">Python + pip</div>
+      <div class="lang-chip" onclick="toggleLang(this, 'C++')">C++ (ARM64)</div>
+      <div class="lang-chip" onclick="toggleLang(this, 'C')">C / Clang</div>
+      <div class="lang-chip" onclick="toggleLang(this, 'Swift')">Swift UI</div>
+      <div class="lang-chip" onclick="toggleLang(this, 'Lua')">Lua Script</div>
+      <div class="lang-chip" onclick="toggleLang(this, 'TypeScript')">TypeScript</div>
+      <div class="lang-chip" onclick="toggleLang(this, 'SQL')">SQLite / SQL</div>
+    </div>
+    <div style="font-size: 12px; color: var(--muted);">Выбранные языки автоматически свяжутся при упаковке структуры в единый .ipa.</div>
+  </div>
+</div>
+
+<!-- ВКЛАДКА 2: ФАЙЛЫ И ПАПКИ -->
+<div id="tab-files" class="section">
+  <div class="card">
+    <div class="card-title">Добавить файл или папку</div>
+    <label>Путь (папка/имя_файла.расширение)</label>
+    <input type="text" id="newFilePath" placeholder="Например: logic/core.cpp или ui/style.css">
+    
+    <label>Язык / Тип файла</label>
+    <select id="newFileLang">
+      <option value="html">HTML (Интерфейс)</option>
+      <option value="css">CSS (Стили)</option>
+      <option value="js">JavaScript (Логика)</option>
+      <option value="py">Python (Скрипт)</option>
+      <option value="cpp">C++ (Нативный код)</option>
+      <option value="c">C (Ядро)</option>
+      <option value="swift">Swift (Модуль iOS)</option>
+      <option value="lua">Lua (Сценарий)</option>
+      <option value="txt">requirements.txt (Пакеты pip)</option>
+      <option value="json">JSON (Конфиг)</option>
+    </select>
+
+    <button class="btn" onclick="createFile()">+ Создать в структуре</button>
+  </div>
+
+  <div class="card">
+    <div class="card-title">
+      <span>Структура проекта</span>
+      <span id="fileCount" style="color: var(--muted); font-size: 12px;">3 файла</span>
+    </div>
+    <div id="fileList"></div>
+  </div>
+</div>
+
+<!-- ВКЛАДКА 3: РЕДАКТОР КОДА -->
+<div id="tab-editor" class="section">
+  <div class="card">
+    <div class="card-title">Редактирование файла</div>
+    <label>Выбери файл из структуры</label>
+    <select id="editorFileSelect" onchange="openFileInEditor()"></select>
+
+    <label>Код файла</label>
+    <textarea id="codeArea" class="code-editor" placeholder="Вставь сюда свой код..."></textarea>
+
+    <div style="display:flex; gap:10px;">
+      <button class="btn" onclick="saveCurrentCode()">Сохранить код</button>
+      <button class="btn btn-secondary" onclick="importFromDevice()">Загрузить файл</button>
+      <input type="file" id="codeFileInput" style="display:none" onchange="handleCodeUpload(event)">
+    </div>
+    <div id="saveStatus" class="status-box"></div>
+  </div>
+</div>
+
+<!-- ВКЛАДКА 4: СБОРКА IPA -->
+<div id="tab-build" class="section">
+  <div class="card">
+    <div class="card-title">Сборка единого IPA файла</div>
+    <p style="font-size: 13px; color: #ddd6fe; margin-top: 0;">
+      Все созданные папки, код на разных языках, иконка и название объединятся в единый пакет приложения.
+    </p>
+
+    <label>GitHub Token (необязательно — для авто-сборки в 1 клик)</label>
+    <input type="text" id="ghToken" placeholder="ghp_xxxxxxxxxxxx">
+
+    <label>Репозиторий (логин/репозиторий)</label>
+    <input type="text" id="ghRepo" placeholder="username/ipa-">
+
+    <button class="btn" onclick="buildProject()">Собрать и упаковать в 1 IPA</button>
+    <div id="buildOutput" class="status-box"></div>
+  </div>
+</div>
+
+<script>
+  let projectFiles = [
+    { path: 'index.html', lang: 'html', content: '<!DOCTYPE html>\n<html lang="ru">\n<head>\n  <meta charset="UTF-8">\n  <title>App</title>\n</head>\n<body>\n  <h1>Привет из нового IPA!</h1>\n</body>\n</html>' },
+    { path: 'backend/main.py', lang: 'py', content: 'def run():\n    return "Python модуль подключен"' },
+    { path: 'native/fast.cpp', lang: 'cpp', content: 'extern "C" int calc(int x) { return x * 2; }' }
+  ];
+
+  let appIconBase64 = null;
+
+  function switchTab(name, el) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+    el.classList.add('active');
+    document.getElementById('tab-' + name).classList.add('active');
+    if (name === 'files') renderFiles();
+    if (name === 'editor') updateEditorSelect();
+  }
+
+  function toggleLang(el, lang) {
+    el.classList.toggle('selected');
+  }
+
+  function loadIcon(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(evt) {
+      appIconBase64 = evt.target.result;
+      document.getElementById('iconPreview').innerHTML = `<img src="${appIconBase64}">`;
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function renderFiles() {
+    const list = document.getElementById('fileList');
+    document.getElementById('fileCount').innerText = projectFiles.length + ' файл(ов)';
+    list.innerHTML = '';
+    projectFiles.forEach((f, idx) => {
+      list.innerHTML += `
+        <div class="file-item">
+          <div class="file-info" onclick="jumpToEdit(${idx})">
+            <span class="lang-tag">${f.lang}</span>
+            <span class="file-path">${f.path}</span>
+          </div>
+          <button class="btn-danger" onclick="deleteFile(${idx})">Удалить</button>
+        </div>
+      `;
+    });
+  }
+
+  function createFile() {
+    const path = document.getElementById('newFilePath').value.trim();
+    const lang = document.getElementById('newFileLang').value;
+    if (!path) return alert('Введи путь и имя файла!');
+    projectFiles.push({ path, lang, content: '// Новый файл: ' + path + '\n' });
+    document.getElementById('newFilePath').value = '';
+    renderFiles();
+    updateEditorSelect();
+  }
+
+  function deleteFile(idx) {
+    projectFiles.splice(idx, 1);
+    renderFiles();
+    updateEditorSelect();
+  }
+
+  function jumpToEdit(idx) {
+    document.querySelectorAll('.tab')[2].click();
+    document.getElementById('editorFileSelect').value = idx;
+    openFileInEditor();
+  }
+
+  function updateEditorSelect() {
+    const sel = document.getElementById('editorFileSelect');
+    sel.innerHTML = '';
+    projectFiles.forEach((f, idx) => {
+      sel.innerHTML += `<option value="${idx}">${f.path} (${f.lang.toUpperCase()})</option>`;
+    });
+    openFileInEditor();
+  }
+
+  function openFileInEditor() {
+    const idx = document.getElementById('editorFileSelect').value;
+    if (projectFiles[idx]) {
+      document.getElementById('codeArea').value = projectFiles[idx].content;
     }
-  </script>
+  }
+
+  function saveCurrentCode() {
+    const idx = document.getElementById('editorFileSelect').value;
+    if (projectFiles[idx]) {
+      projectFiles[idx].content = document.getElementById('codeArea').value;
+      const box = document.getElementById('saveStatus');
+      box.style.display = 'block';
+      box.style.borderColor = 'var(--success)';
+      box.innerText = '✅ Файл "' + projectFiles[idx].path + '" сохранён в структуру!';
+      setTimeout(() => box.style.display = 'none', 2500);
+    }
+  }
+
+  function importFromDevice() {
+    document.getElementById('codeFileInput').click();
+  }
+
+  function handleCodeUpload(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(evt) {
+      document.getElementById('codeArea').value = evt.target.result;
+      saveCurrentCode();
+    };
+    reader.readAsText(file);
+  }
+
+  async function buildProject() {
+    const name = document.getElementById('appName').value.trim() || 'MyApp';
+    const bundle = document.getElementById('bundleId').value.trim() || 'com.custom.app';
+    const out = document.getElementById('buildOutput');
+    out.style.display = 'block';
+
+    const manifest = {
+      appName: name,
+      bundleId: bundle,
+      hasCustomIcon: !!appIconBase64,
+      filesCount: projectFiles.length,
+      structure: projectFiles.map(f => ({ path: f.path, lang: f.lang, size: f.content.length }))
+    };
+
+    const blob = new Blob([JSON.stringify({ manifest, files: projectFiles, icon: appIconBase64 }, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = name + '_bundle.json';
+    a.click();
+
+    out.style.borderColor = 'var(--accent)';
+    out.innerHTML = `
+      <b>🟣 Структура проекта «${name}» собрана!</b><br><br>
+      • Bundle ID: <code>${bundle}</code><br>
+      • Файлов в связке: <b>${projectFiles.length}</b><br>
+      • Иконка: <b>${appIconBase64 ? 'Загружена своя' : 'Стандартная фиолетовая'}</b><br><br>
+      Единый пакет проекта выгружен. Закинь файлы в <code>app_code/</code> на GitHub и запусти <b>Build Universal IPA</b> — на выходе получишь готовый <b>${name}.ipa</b> с твоей иконкой!
+    `;
+  }
+
+  renderFiles();
+</script>
 </body>
 </html>
