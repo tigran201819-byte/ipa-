@@ -24,7 +24,6 @@ icon_contents = {
     }
 }
 
-# Ищет любой файл icon.* (включая icon.png.png, icon.jpeg.jpeg и т.д.)
 found_icons = glob.glob("app_code/icon.*")
 if found_icons:
     src = found_icons[0]
@@ -39,6 +38,7 @@ with open("Assets.xcassets/Contents.json", "w") as f:
 
 swift_code = '''import UIKit
 import WebKit
+import Compression
 
 @main
 class AppDelegate: UIResponder, UIApplicationDelegate {
@@ -52,7 +52,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     }
 }
 
-class MainViewController: UIViewController {
+class MainViewController: UIViewController, WKScriptMessageHandler {
     var webView: WKWebView!
 
     override var preferredStatusBarStyle: UIStatusBarStyle {
@@ -61,14 +61,15 @@ class MainViewController: UIViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        view.backgroundColor = UIColor(red: 0.05, green: 0.03, blue: 0.11, alpha: 1.0)
+        view.backgroundColor = UIColor(red: 0.04, green: 0.02, blue: 0.09, alpha: 1.0)
 
         let config = WKWebViewConfiguration()
         config.preferences.setValue(true, forKey: "allowFileAccessFromFileURLs")
-        
+        config.userContentController.add(self, name: "nativeBuilder")
+
         webView = WKWebView(frame: view.bounds, configuration: config)
         webView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
-        webView.backgroundColor = UIColor(red: 0.05, green: 0.03, blue: 0.11, alpha: 1.0)
+        webView.backgroundColor = UIColor(red: 0.04, green: 0.02, blue: 0.09, alpha: 1.0)
         webView.isOpaque = false
         view.addSubview(webView)
 
@@ -76,6 +77,199 @@ class MainViewController: UIViewController {
             let url = URL(fileURLWithPath: htmlPath)
             webView.loadFileURL(url, allowingReadAccessTo: url.deletingLastPathComponent())
         }
+    }
+
+    func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
+        guard message.name == "nativeBuilder",
+              let payload = message.body as? [String: Any],
+              let action = payload["action"] as? String else { return }
+
+        if action == "buildIPA" {
+            let appName = (payload["appName"] as? String) ?? "CustomApp"
+            let bundleId = (payload["bundleId"] as? String) ?? "com.custom.app"
+            let files = (payload["files"] as? [[String: String]]) ?? []
+            let iconB64 = payload["iconBase64"] as? String
+
+            DispatchQueue.global(qos: .userInitiated).async {
+                do {
+                    let ipaURL = try self.assembleIPAOnDevice(appName: appName, bundleId: bundleId, files: files, iconB64: iconB64)
+                    DispatchQueue.main.async {
+                        self.webView.evaluateJavaScript("onNativeBuildSuccess('\\(ipaURL.lastPathComponent)')")
+                        let activityVC = UIActivityViewController(activityItems: [ipaURL], applicationActivities: nil)
+                        if let popover = activityVC.popoverPresentationController {
+                            popover.sourceView = self.view
+                            popover.sourceRect = CGRect(x: self.view.bounds.midX, y: self.view.bounds.midY, width: 0, height: 0)
+                        }
+                        self.present(activityVC, animated: true)
+                    }
+                } catch {
+                    let msg = error.localizedDescription.replacingOccurrences(of: "'", with: "")
+                    DispatchQueue.main.async {
+                        self.webView.evaluateJavaScript("onNativeBuildError('\\(msg)')")
+                    }
+                }
+            }
+        }
+    }
+
+    func assembleIPAOnDevice(appName: String, bundleId: String, files: [[String: String]], iconB64: String?) throws -> URL {
+        let fm = FileManager.default
+        let workDir = fm.temporaryDirectory.appendingPathComponent("ipa_work_\\(UUID().uuidString)")
+        try fm.createDirectory(at: workDir, withIntermediateDirectories: true)
+        defer { try? fm.removeItem(at: workDir) }
+
+        // Обход 1: копируем текущий запущенный .app бандл напрямую из системы (даже base_template.ipa не нужен!)
+        let currentAppURL = Bundle.main.bundleURL
+        let payloadDir = workDir.appendingPathComponent("Payload")
+        try fm.createDirectory(at: payloadDir, withIntermediateDirectories: true)
+
+        let cleanFolderName = appName.components(separatedBy: CharacterSet.alphanumerics.inverted).joined()
+        let finalAppName = cleanFolderName.isEmpty ? "CustomApp" : cleanFolderName
+        let targetAppURL = payloadDir.appendingPathComponent("\\(finalAppName).app")
+        try fm.copyItem(at: currentAppURL, to: targetAppURL)
+
+        // Чистим лишнее внутри копии
+        let oldCodeDir = targetAppURL.appendingPathComponent("app_code")
+        try? fm.removeItem(at: oldCodeDir)
+        try fm.createDirectory(at: oldCodeDir, withIntermediateDirectories: true)
+
+        // Записываем все новые файлы и подпапки пользователя
+        for f in files {
+            guard let relPath = f["path"], let content = f["content"] else { continue }
+            let fileURL = oldCodeDir.appendingPathComponent(relPath)
+            try fm.createDirectory(at: fileURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try content.write(to: fileURL, atomically: true, encoding: .utf8)
+        }
+
+        // Обновляем иконку, если пользователь выбрал свою
+        if let b64 = iconB64, let imgData = Data(base64Encoded: b64) {
+            let iconURL = oldCodeDir.appendingPathComponent("AppIcon60x60@3x.png")
+            try imgData.write(to: iconURL)
+        }
+
+        // Обход 2: правим Info.plist через нативный PropertyListSerialization (работает и с binary plist)
+        let plistURL = targetAppURL.appendingPathComponent("Info.plist")
+        if let plistData = try? Data(contentsOf: plistURL),
+           var plistDict = try? PropertyListSerialization.propertyList(from: plistData, options: .mutableContainersAndLeaves, format: nil) as? [String: Any] {
+            plistDict["CFBundleDisplayName"] = appName
+            plistDict["CFBundleName"] = appName
+            plistDict["CFBundleIdentifier"] = bundleId
+            if let newPlistData = try? PropertyListSerialization.data(fromPropertyList: plistDict, format: .xml, options: 0) {
+                try newPlistData.write(to: plistURL)
+            }
+        }
+
+        // Обход 3: пакуем Payload в .ipa нативным ZIP-архиватором и кладем в Documents
+        let docsDir = fm.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        let outIPA = docsDir.appendingPathComponent("\\(finalAppName).ipa")
+        try? fm.removeItem(at: outIPA)
+
+        try PureSwiftZip.zipDirectory(sourceDir: workDir, destZip: outIPA)
+        return outIPA
+    }
+}
+
+// Нативный оффлайн ZIP-архиватор на чистом Swift (без внешних зависимостей)
+class PureSwiftZip {
+    static func zipDirectory(sourceDir: URL, destZip: URL) throws {
+        let fm = FileManager.default
+        var archiveData = Data()
+        var centralDirectory = Data()
+        var entryCount: UInt16 = 0
+
+        let enumerator = fm.enumerator(at: sourceDir, includingPropertiesForKeys: [.isDirectoryKey], options: [])!
+        for case let fileURL as URL in enumerator {
+            let resourceValues = try fileURL.resourceValues(forKeys: [.isDirectoryKey])
+            if resourceValues.isDirectory == true { continue }
+
+            let relPath = fileURL.path.replacingOccurrences(of: sourceDir.path + "/", with: "")
+            let nameData = relPath.data(using: .utf8)!
+            let fileData = try Data(contentsOf: fileURL)
+            let crc = crc32(data: fileData)
+            let localOffset = UInt32(archiveData.count)
+
+            var localHeader = Data()
+            localHeader.appendUInt32(0x04034b50)
+            localHeader.appendUInt16(20)
+            localHeader.appendUInt16(0)
+            localHeader.appendUInt16(0) // Store (без сжатия — мгновенно и 100% совместимо с iOS)
+            localHeader.appendUInt16(0)
+            localHeader.appendUInt16(0)
+            localHeader.appendUInt32(crc)
+            localHeader.appendUInt32(UInt32(fileData.count))
+            localHeader.appendUInt32(UInt32(fileData.count))
+            localHeader.appendUInt16(UInt16(nameData.count))
+            localHeader.appendUInt16(0)
+            localHeader.append(nameData)
+
+            archiveData.append(localHeader)
+            archiveData.append(fileData)
+
+            var cdHeader = Data()
+            cdHeader.appendUInt32(0x02014b50)
+            cdHeader.appendUInt16(20)
+            cdHeader.appendUInt16(20)
+            cdHeader.appendUInt16(0)
+            cdHeader.appendUInt16(0)
+            cdHeader.appendUInt16(0)
+            cdHeader.appendUInt16(0)
+            cdHeader.appendUInt32(crc)
+            cdHeader.appendUInt32(UInt32(fileData.count))
+            cdHeader.appendUInt32(UInt32(fileData.count))
+            cdHeader.appendUInt16(UInt16(nameData.count))
+            cdHeader.appendUInt16(0)
+            cdHeader.appendUInt16(0)
+            cdHeader.appendUInt16(0)
+            cdHeader.appendUInt16(0)
+            cdHeader.appendUInt32(0)
+            cdHeader.appendUInt32(localOffset)
+            cdHeader.append(nameData)
+
+            centralDirectory.append(cdHeader)
+            entryCount += 1
+        }
+
+        let cdOffset = UInt32(archiveData.count)
+        let cdSize = UInt32(centralDirectory.count)
+        archiveData.append(centralDirectory)
+
+        var eocd = Data()
+        eocd.appendUInt32(0x06054b50)
+        eocd.appendUInt16(0)
+        eocd.appendUInt16(0)
+        eocd.appendUInt16(entryCount)
+        eocd.appendUInt16(entryCount)
+        eocd.appendUInt32(cdSize)
+        eocd.appendUInt32(cdOffset)
+        eocd.appendUInt16(0)
+
+        archiveData.append(eocd)
+        try archiveData.write(to: destZip)
+    }
+
+    static func crc32(data: Data) -> UInt32 {
+        var crc: UInt32 = 0xffffffff
+        for byte in data {
+            var b = UInt32(byte)
+            for _ in 0..<8 {
+                let mix = (crc ^ b) & 1
+                crc >>= 1
+                if mix != 0 { crc ^= 0xedb88320 }
+                b >>= 1
+            }
+        }
+        return ~crc
+    }
+}
+
+extension Data {
+    mutating func appendUInt16(_ value: UInt16) {
+        var v = value.littleEndian
+        append(Data(bytes: &v, count: 2))
+    }
+    mutating func appendUInt32(_ value: UInt32) {
+        var v = value.littleEndian
+        append(Data(bytes: &v, count: 4))
     }
 }
 '''
@@ -107,6 +301,10 @@ info_plist = f'''<?xml version="1.0" encoding="UTF-8"?>
     <key>CFBundleVersion</key>
     <string>1</string>
     <key>LSRequiresIPhoneOS</key>
+    <true/>
+    <key>UIFileSharingEnabled</key>
+    <true/>
+    <key>LSSupportsOpeningDocumentsInPlace</key>
     <true/>
     <key>UIUserInterfaceStyle</key>
     <string>Dark</string>
