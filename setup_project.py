@@ -142,6 +142,30 @@ class MainViewController: UIViewController, WKScriptMessageHandler {
         self.present(activityVC, animated: true)
     }
 
+    func generateFallbackIcon(appName: String) -> UIImage {
+        let size = CGSize(width: 512, height: 512)
+        let format = UIGraphicsImageRendererFormat()
+        format.opaque = true
+        format.scale = 1.0
+        return UIGraphicsImageRenderer(size: size, format: format).image { ctx in
+            let colors = [
+                UIColor(red: 0.45, green: 0.16, blue: 0.85, alpha: 1.0).cgColor,
+                UIColor(red: 0.08, green: 0.04, blue: 0.18, alpha: 1.0).cgColor
+            ] as CFArray
+            if let gradient = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(), colors: colors, locations: [0.0, 1.0]) {
+                ctx.cgContext.drawLinearGradient(gradient, start: CGPoint(x: 0, y: 0), end: CGPoint(x: 512, y: 512), options: [])
+            }
+            let letter = String(appName.prefix(1)).uppercased()
+            let attrs: [NSAttributedString.Key: Any] = [
+                .font: UIFont.systemFont(ofSize: 240, weight: .bold),
+                .foregroundColor: UIColor.white
+            ]
+            let textSize = letter.size(withAttributes: attrs)
+            let rect = CGRect(x: (512 - textSize.width) / 2, y: (512 - textSize.height) / 2, width: textSize.width, height: textSize.height)
+            letter.draw(in: rect, withAttributes: attrs)
+        }
+    }
+
     func extractIPA(data: Data) -> [String: Any] {
         var extractedFiles: [[String: String]] = []
         var warnings: [String] = []
@@ -256,7 +280,7 @@ class MainViewController: UIViewController, WKScriptMessageHandler {
             try content.write(to: fileURL, atomically: true, encoding: .utf8)
         }
 
-        // 1. Полностью удаляем все старые иконки и кэш ассетов родительского приложения
+        // 1. Удаляем все старые иконки и кэш ассетов родительского приложения
         let enumerator = fm.enumerator(at: targetAppURL, includingPropertiesForKeys: nil)
         while let fileURL = enumerator?.nextObject() as? URL {
             let name = fileURL.lastPathComponent
@@ -265,40 +289,63 @@ class MainViewController: UIViewController, WKScriptMessageHandler {
             }
         }
 
-        // 2. Рендерим непрозрачные PNG иконки строго под iOS / LiveContainer
+        // 2. Берем фото пользователя или генерируем уникальную иконку с буквой приложения
+        let sourceImg: UIImage
         if let b64 = iconB64, !b64.isEmpty, let rawData = Data(base64Encoded: b64), let uiImg = UIImage(data: rawData) {
-            let format = UIGraphicsImageRendererFormat()
-            format.opaque = true
-            format.scale = 1.0
+            sourceImg = uiImg
+        } else {
+            sourceImg = generateFallbackIcon(appName: appName)
+        }
 
-            let sizes: [(String, CGFloat)] = [
-                ("AppIcon60x60@2x.png", 120),
-                ("AppIcon60x60@3x.png", 180)
-            ]
+        let format = UIGraphicsImageRendererFormat()
+        format.opaque = true
+        format.scale = 1.0
 
-            for (fileName, dim) in sizes {
-                let renderer = UIGraphicsImageRenderer(size: CGSize(width: dim, height: dim), format: format)
-                let pngData = renderer.image { _ in
-                    uiImg.draw(in: CGRect(x: 0, y: 0, width: dim, height: dim))
-                }.pngData()
-                if let data = pngData {
-                    try? data.write(to: targetAppURL.appendingPathComponent(fileName))
-                }
+        let iconVariants: [(String, CGFloat)] = [
+            ("AppIcon60x60@2x.png", 120),
+            ("AppIcon60x60@3x.png", 180),
+            ("AppIcon76x76@2x~ipad.png", 152),
+            ("Icon-60@2x.png", 120),
+            ("Icon-60@3x.png", 180),
+            ("Icon.png", 512)
+        ]
+
+        for (fileName, dim) in iconVariants {
+            let renderer = UIGraphicsImageRenderer(size: CGSize(width: dim, height: dim), format: format)
+            let pngData = renderer.image { _ in
+                sourceImg.draw(in: CGRect(x: 0, y: 0, width: dim, height: dim))
+            }.pngData()
+            if let data = pngData {
+                try? data.write(to: targetAppURL.appendingPathComponent(fileName))
             }
         }
 
-        // 3. Обновляем Info.plist
+        // 3. Переименовываем бинарник и обновляем Info.plist
         let plistURL = targetAppURL.appendingPathComponent("Info.plist")
         if let plistData = try? Data(contentsOf: plistURL),
            var plistDict = try? PropertyListSerialization.propertyList(from: plistData, options: .mutableContainersAndLeaves, format: nil) as? [String: Any] {
+            if let oldExec = plistDict["CFBundleExecutable"] as? String, oldExec != finalAppName {
+                let oldExecURL = targetAppURL.appendingPathComponent(oldExec)
+                let newExecURL = targetAppURL.appendingPathComponent(finalAppName)
+                if fm.fileExists(atPath: oldExecURL.path) {
+                    try? fm.moveItem(at: oldExecURL, to: newExecURL)
+                    plistDict["CFBundleExecutable"] = finalAppName
+                }
+            }
             plistDict["CFBundleDisplayName"] = appName
             plistDict["CFBundleName"] = appName
             plistDict["CFBundleIdentifier"] = bundleId
             plistDict.removeValue(forKey: "CFBundleIconName")
-            plistDict["CFBundleIconFiles"] = ["AppIcon60x60"]
+            plistDict["CFBundleIconFiles"] = ["AppIcon60x60", "Icon-60", "Icon"]
             plistDict["CFBundleIcons"] = [
                 "CFBundlePrimaryIcon": [
-                    "CFBundleIconFiles": ["AppIcon60x60"],
+                    "CFBundleIconFiles": ["AppIcon60x60", "Icon-60", "Icon"],
+                    "UIPrerenderedIcon": true
+                ]
+            ]
+            plistDict["CFBundleIcons~ipad"] = [
+                "CFBundlePrimaryIcon": [
+                    "CFBundleIconFiles": ["AppIcon76x76", "AppIcon60x60", "Icon"],
                     "UIPrerenderedIcon": true
                 ]
             ]
