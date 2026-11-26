@@ -106,4 +106,3 @@ targets:
 
 with open("project.yml", "w") as f:
     f.write(project_yml)
-_
