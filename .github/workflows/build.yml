@@ -20,10 +20,9 @@ jobs:
       - name: Загрузка файлов репозитория
         uses: actions/checkout@v4
 
-      - name: Установка XcodeGen и Python
+      - name: Установка XcodeGen
         run: |
           brew install xcodegen
-          python3 -m pip install --upgrade pip
 
       - name: Скачивание готового ядра Python для iOS
         run: |
@@ -36,7 +35,7 @@ jobs:
         run: |
           mkdir -p app_code/site-packages
           if [ -s app_code/requirements.txt ]; then
-            pip install -r app_code/requirements.txt --target app_code/site-packages --no-deps || pip install -r app_code/requirements.txt --target app_code/site-packages
+            python3 -m pip install --break-system-packages -r app_code/requirements.txt --target app_code/site-packages --no-deps || python3 -m pip install --break-system-packages -r app_code/requirements.txt --target app_code/site-packages
           fi
 
       - name: Компиляция C++ кода
