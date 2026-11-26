@@ -56,6 +56,8 @@ class MainViewController: UIViewController {
         
         setenv("PYTHONHOME", frameworkPath, 1)
         setenv("PYTHONPATH", "\\(appCodePath):\\(appCodePath)/site-packages", 1)
+        setenv("PYTHONDONTWRITEBYTECODE", "1", 1)
+        setenv("PYTHONUNBUFFERED", "1", 1)
         
         DispatchQueue.global(qos: .userInitiated).async {
             Py_Initialize()
