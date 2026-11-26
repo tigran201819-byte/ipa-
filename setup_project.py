@@ -38,6 +38,7 @@ with open("Assets.xcassets/Contents.json", "w") as f:
 
 swift_code = '''import UIKit
 import WebKit
+import Compression
 
 @main
 class AppDelegate: UIResponder, UIApplicationDelegate {
@@ -112,6 +113,19 @@ class MainViewController: UIViewController, WKScriptMessageHandler {
             DispatchQueue.main.async {
                 self.shareFile(url: fileURL)
             }
+        } else if action == "parseIPA" {
+            guard let b64 = payload["data"] as? String,
+                  let ipaData = Data(base64Encoded: b64) else { return }
+            DispatchQueue.global(qos: .userInitiated).async {
+                let result = self.extractIPA(data: ipaData)
+                if let jsonData = try? JSONSerialization.data(withJSONObject: result, options: []),
+                   let jsonStr = String(data: jsonData, encoding: .utf8) {
+                    let escaped = jsonStr.replacingOccurrences(of: "\\\\", with: "\\\\\\\\").replacingOccurrences(of: "'", with: "\\\\'")
+                    DispatchQueue.main.async {
+                        self.webView.evaluateJavaScript("onIPAExtracted('\\(escaped)')")
+                    }
+                }
+            }
         }
     }
 
@@ -130,6 +144,100 @@ class MainViewController: UIViewController, WKScriptMessageHandler {
             image.draw(in: CGRect(origin: .zero, size: size))
         }
         return resized.pngData()
+    }
+
+    func extractIPA(data: Data) -> [String: Any] {
+        var extractedFiles: [[String: String]] = []
+        var warnings: [String] = []
+        var foundAppName = "ExtractedApp"
+        var foundBundleId = "com.extracted.app"
+        var foundIconB64 = ""
+
+        let entries = PureSwiftZip.unzipEntries(data: data)
+        if entries.isEmpty {
+            return ["error": "Не удалось открыть архив IPA. Файл повреждён или зашифрован."]
+        }
+
+        let textExts = ["html", "htm", "js", "css", "py", "json", "txt", "xml", "plist", "lua", "swift", "c", "cpp", "h", "sh", "yml", "yaml"]
+
+        for entry in entries {
+            let name = entry.name
+            if name.hasSuffix("/") { continue }
+
+            // Проверка на FairPlay DRM шифрование (.sinf / .supf)
+            if name.contains("SC_Info/") || name.hasSuffix(".sinf") || name.hasSuffix(".supf") {
+                warnings.append("Обнаружена защита Apple FairPlay DRM: расшифровка бинарника невозможна.")
+            }
+
+            let fileName = (name as NSString).lastPathComponent
+            let ext = (fileName as NSString).pathExtension.lowercased()
+
+            // Читаем Info.plist
+            if name.hasSuffix(".app/Info.plist") {
+                if let plistDict = try? PropertyListSerialization.propertyList(from: entry.data, options: [], format: nil) as? [String: Any] {
+                    if let dName = plistDict["CFBundleDisplayName"] as? String ?? plistDict["CFBundleName"] as? String {
+                        foundAppName = dName
+                    }
+                    if let bId = plistDict["CFBundleIdentifier"] as? String {
+                        foundBundleId = bId + ".copy"
+                    }
+                }
+                continue
+            }
+
+            // Вытаскиваем иконку
+            if (fileName.contains("AppIcon") || fileName.lowercased().contains("icon")) && ext == "png" && foundIconB64.isEmpty {
+                if UIImage(data: entry.data) != nil {
+                    foundIconB64 = entry.data.base64EncodedString()
+                }
+                continue
+            }
+
+            // Пропускаем служебные файлы подписи
+            if name.contains("_CodeSignature/") || name.hasSuffix(".mobileprovision") || name.hasSuffix("Assets.car") || name.hasSuffix(".nib") {
+                continue
+            }
+
+            // Вытаскиваем исходный код
+            if textExts.contains(ext) {
+                if let text = String(data: entry.data, encoding: .utf8) {
+                    var cleanPath = fileName
+                    if let range = name.range(of: "app_code/") {
+                        cleanPath = String(name[range.upperBound...])
+                    } else if let range = name.range(of: ".app/") {
+                        cleanPath = String(name[range.upperBound...])
+                    }
+                    extractedFiles.append([
+                        "path": cleanPath,
+                        "lang": ext,
+                        "content": text
+                    ])
+                } else {
+                    warnings.append("Не удалось загрузить код \\(fileName). Ошибка: расшифровка")
+                }
+            } else if ext.isEmpty || ext == "dylib" || ext == "framework" {
+                // Скомпилированный исполняемый файл или зашифрованный бинарник
+                if !fileName.hasPrefix("libswift") {
+                    warnings.append("Не удалось загрузить код \\(fileName). Ошибка: расшифровка (скомпилированный / зашифрованный код)")
+                }
+            }
+        }
+
+        if extractedFiles.isEmpty {
+            extractedFiles.append([
+                "path": "index.html",
+                "lang": "html",
+                "content": "<!DOCTYPE html>\\n<html lang=\\"ru\\">\\n<head><meta charset=\\"UTF-8\\"></head>\\n<body style=\\"background:#090512;color:#fff;font-family:sans-serif;padding:20px;\\">\\n<h2>Импортированный пакет</h2>\\n<p>Открытый веб-код внутри IPA не найден (приложение скомпилировано в машинный код или зашифровано).</p>\\n</body>\\n</html>"
+            ])
+        }
+
+        return [
+            "appName": foundAppName,
+            "bundleId": foundBundleId,
+            "iconBase64": foundIconB64,
+            "files": extractedFiles,
+            "warnings": warnings
+        ]
     }
 
     func assembleIPAOnDevice(appName: String, bundleId: String, files: [[String: String]], iconB64: String?) throws -> URL {
@@ -158,13 +266,19 @@ class MainViewController: UIViewController, WKScriptMessageHandler {
             try content.write(to: fileURL, atomically: true, encoding: .utf8)
         }
 
-        // Жёсткая перезапись иконки во всех местах .app бандла для iOS и LiveContainer
-        if let b64 = iconB64, let rawData = Data(base64Encoded: b64), let uiImg = UIImage(data: rawData) {
+        // Полная замена иконки в корне .app и удаление старого кэша Assets.car
+        if let b64 = iconB64, !b64.isEmpty, let rawData = Data(base64Encoded: b64), let uiImg = UIImage(data: rawData) {
             try? fm.removeItem(at: targetAppURL.appendingPathComponent("Assets.car"))
-            let iconNames = ["AppIcon60x60@2x.png", "AppIcon60x60@3x.png", "AppIcon76x76@2x~ipad.png", "Icon.png"]
-            let iconSizes: [CGFloat] = [120, 180, 152, 1024]
-            for (idx, name) in iconNames.enumerated() {
-                if let png = resizeImage(image: uiImg, size: CGSize(width: iconSizes[idx], height: iconSizes[idx])) {
+            let iconSpecs: [(String, CGFloat)] = [
+                ("AppIcon60x60@2x.png", 120),
+                ("AppIcon60x60@3x.png", 180),
+                ("AppIcon76x76@2x~ipad.png", 152),
+                ("AppIcon83.5x83.5@2x~ipad.png", 167),
+                ("Icon.png", 1024),
+                ("Icon@2x.png", 180)
+            ]
+            for (name, sz) in iconSpecs {
+                if let png = resizeImage(image: uiImg, size: CGSize(width: sz, height: sz)) {
                     try? png.write(to: targetAppURL.appendingPathComponent(name))
                     try? png.write(to: oldCodeDir.appendingPathComponent(name))
                 }
@@ -177,6 +291,7 @@ class MainViewController: UIViewController, WKScriptMessageHandler {
             plistDict["CFBundleDisplayName"] = appName
             plistDict["CFBundleName"] = appName
             plistDict["CFBundleIdentifier"] = bundleId
+            plistDict.removeValue(forKey: "CFBundleIconName")
             plistDict["CFBundleIconFiles"] = ["AppIcon60x60", "AppIcon76x76", "Icon"]
             plistDict["CFBundleIcons"] = [
                 "CFBundlePrimaryIcon": [
@@ -198,7 +313,78 @@ class MainViewController: UIViewController, WKScriptMessageHandler {
     }
 }
 
+struct ZipEntry {
+    let name: String
+    let data: Data
+}
+
 class PureSwiftZip {
+    static func unzipEntries(data: Data) -> [ZipEntry] {
+        var results: [ZipEntry] = []
+        let count = data.count
+        if count < 22 { return results }
+
+        // Ищем EOCD с конца файла
+        var eocdOffset = -1
+        for i in stride(from: count - 22, through: max(0, count - 65557), by: -1) {
+            if data.readUInt32(at: i) == 0x06054b50 {
+                eocdOffset = i
+                break
+            }
+        }
+        if eocdOffset == -1 { return results }
+
+        let totalEntries = Int(data.readUInt16(at: eocdOffset + 10))
+        var cdOffset = Int(data.readUInt32(at: eocdOffset + 16))
+
+        for _ in 0..<totalEntries {
+            if cdOffset + 46 > count || data.readUInt32(at: cdOffset) != 0x02014b50 { break }
+            let compMethod = data.readUInt16(at: cdOffset + 10)
+            let compSize = Int(data.readUInt32(at: cdOffset + 20))
+            let uncompSize = Int(data.readUInt32(at: cdOffset + 24))
+            let nameLen = Int(data.readUInt16(at: cdOffset + 28))
+            let extraLen = Int(data.readUInt16(at: cdOffset + 30))
+            let commentLen = Int(data.readUInt16(at: cdOffset + 32))
+            let localHeaderOffset = Int(data.readUInt32(at: cdOffset + 42))
+
+            if cdOffset + 46 + nameLen > count { break }
+            let nameData = data.subdata(in: (cdOffset + 46)..<(cdOffset + 46 + nameLen))
+            let name = String(data: nameData, encoding: .utf8) ?? ""
+
+            if localHeaderOffset + 30 <= count {
+                let lNameLen = Int(data.readUInt16(at: localHeaderOffset + 26))
+                let lExtraLen = Int(data.readUInt16(at: localHeaderOffset + 28))
+                let dataStart = localHeaderOffset + 30 + lNameLen + lExtraLen
+                if dataStart + compSize <= count {
+                    let compData = data.subdata(in: dataStart..<(dataStart + compSize))
+                    if compMethod == 0 {
+                        results.append(ZipEntry(name: name, data: compData))
+                    } else if compMethod == 8, let decompressed = inflateRaw(data: compData, expectedSize: max(uncompSize, 1024)) {
+                        results.append(ZipEntry(name: name, data: decompressed))
+                    }
+                }
+            }
+            cdOffset += 46 + nameLen + extraLen + commentLen
+        }
+        return results
+    }
+
+    static func inflateRaw(data: Data, expectedSize: Int) -> Data? {
+        var outSize = max(expectedSize * 2, 65536)
+        for _ in 0..<4 {
+            var destBuffer = [UInt8](repeating: 0, count: outSize)
+            let decodedCount = data.withUnsafeBytes { rawBuf -> Int in
+                guard let srcPtr = rawBuf.baseAddress?.assumingMemoryBound(to: UInt8.self) else { return 0 }
+                return compression_decode_buffer(&destBuffer, outSize, srcPtr, data.count, nil, COMPRESSION_ZLIB)
+            }
+            if decodedCount > 0 && decodedCount < outSize {
+                return Data(destBuffer.prefix(decodedCount))
+            }
+            outSize *= 4
+        }
+        return nil
+    }
+
     static func zipDirectory(sourceDir: URL, destZip: URL) throws {
         let fm = FileManager.default
         var archiveData = Data()
@@ -298,6 +484,12 @@ extension Data {
     mutating func appendUInt32(_ value: UInt32) {
         var v = value.littleEndian
         append(Data(bytes: &v, count: 4))
+    }
+    func readUInt16(at offset: Int) -> UInt16 {
+        return self.subdata(in: offset..<(offset + 2)).withUnsafeBytes { $0.load(as: UInt16.self).littleEndian }
+    }
+    func readUInt32(at offset: Int) -> UInt32 {
+        return self.subdata(in: offset..<(offset + 4)).withUnsafeBytes { $0.load(as: UInt32.self).littleEndian }
     }
 }
 '''
