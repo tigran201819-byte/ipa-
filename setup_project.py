@@ -142,14 +142,6 @@ class MainViewController: UIViewController, WKScriptMessageHandler {
         self.present(activityVC, animated: true)
     }
 
-    func resizeImage(image: UIImage, size: CGSize) -> Data? {
-        let renderer = UIGraphicsImageRenderer(size: size)
-        let resized = renderer.image { _ in
-            image.draw(in: CGRect(origin: .zero, size: size))
-        }
-        return resized.pngData()
-    }
-
     func extractIPA(data: Data) -> [String: Any] {
         var extractedFiles: [[String: String]] = []
         var warnings: [String] = []
@@ -264,24 +256,38 @@ class MainViewController: UIViewController, WKScriptMessageHandler {
             try content.write(to: fileURL, atomically: true, encoding: .utf8)
         }
 
+        // 1. Полностью удаляем все старые иконки и кэш ассетов родительского приложения
+        let enumerator = fm.enumerator(at: targetAppURL, includingPropertiesForKeys: nil)
+        while let fileURL = enumerator?.nextObject() as? URL {
+            let name = fileURL.lastPathComponent
+            if name.hasPrefix("AppIcon") || name.hasPrefix("Icon") || name == "Assets.car" {
+                try? fm.removeItem(at: fileURL)
+            }
+        }
+
+        // 2. Рендерим непрозрачные PNG иконки строго под iOS / LiveContainer
         if let b64 = iconB64, !b64.isEmpty, let rawData = Data(base64Encoded: b64), let uiImg = UIImage(data: rawData) {
-            try? fm.removeItem(at: targetAppURL.appendingPathComponent("Assets.car"))
-            let iconSpecs: [(String, CGFloat)] = [
+            let format = UIGraphicsImageRendererFormat()
+            format.opaque = true
+            format.scale = 1.0
+
+            let sizes: [(String, CGFloat)] = [
                 ("AppIcon60x60@2x.png", 120),
-                ("AppIcon60x60@3x.png", 180),
-                ("AppIcon76x76@2x~ipad.png", 152),
-                ("AppIcon83.5x83.5@2x~ipad.png", 167),
-                ("Icon.png", 1024),
-                ("Icon@2x.png", 180)
+                ("AppIcon60x60@3x.png", 180)
             ]
-            for (name, sz) in iconSpecs {
-                if let png = resizeImage(image: uiImg, size: CGSize(width: sz, height: sz)) {
-                    try? png.write(to: targetAppURL.appendingPathComponent(name))
-                    try? png.write(to: oldCodeDir.appendingPathComponent(name))
+
+            for (fileName, dim) in sizes {
+                let renderer = UIGraphicsImageRenderer(size: CGSize(width: dim, height: dim), format: format)
+                let pngData = renderer.image { _ in
+                    uiImg.draw(in: CGRect(x: 0, y: 0, width: dim, height: dim))
+                }.pngData()
+                if let data = pngData {
+                    try? data.write(to: targetAppURL.appendingPathComponent(fileName))
                 }
             }
         }
 
+        // 3. Обновляем Info.plist
         let plistURL = targetAppURL.appendingPathComponent("Info.plist")
         if let plistData = try? Data(contentsOf: plistURL),
            var plistDict = try? PropertyListSerialization.propertyList(from: plistData, options: .mutableContainersAndLeaves, format: nil) as? [String: Any] {
@@ -289,10 +295,10 @@ class MainViewController: UIViewController, WKScriptMessageHandler {
             plistDict["CFBundleName"] = appName
             plistDict["CFBundleIdentifier"] = bundleId
             plistDict.removeValue(forKey: "CFBundleIconName")
-            plistDict["CFBundleIconFiles"] = ["AppIcon60x60", "AppIcon76x76", "Icon"]
+            plistDict["CFBundleIconFiles"] = ["AppIcon60x60"]
             plistDict["CFBundleIcons"] = [
                 "CFBundlePrimaryIcon": [
-                    "CFBundleIconFiles": ["AppIcon60x60", "Icon"],
+                    "CFBundleIconFiles": ["AppIcon60x60"],
                     "UIPrerenderedIcon": true
                 ]
             ]
