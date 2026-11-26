@@ -1,6 +1,7 @@
 import sys
 import os
 import json
+import glob
 
 app_name = sys.argv[1]
 bundle_id = sys.argv[2]
@@ -8,7 +9,6 @@ bundle_id = sys.argv[2]
 os.makedirs("Sources", exist_ok=True)
 os.makedirs("Assets.xcassets/AppIcon.appiconset", exist_ok=True)
 
-# Настройка иконки приложения из app_code/icon.png
 icon_contents = {
     "images": [
         {
@@ -24,10 +24,12 @@ icon_contents = {
     }
 }
 
-if os.path.exists("app_code/icon.png"):
-    os.system("sips -s format png -z 1024 1024 app_code/icon.png --out Assets.xcassets/AppIcon.appiconset/icon-1024.png")
-elif os.path.exists("app_code/icon.jpg"):
-    os.system("sips -s format png -z 1024 1024 app_code/icon.jpg --out Assets.xcassets/AppIcon.appiconset/icon-1024.png")
+# Ищет любой файл icon.* (включая icon.png.png, icon.jpeg.jpeg и т.д.)
+found_icons = glob.glob("app_code/icon.*")
+if found_icons:
+    src = found_icons[0]
+    os.system(f'sips -s format png -z 1024 1024 "{src}" --out Assets.xcassets/AppIcon.appiconset/icon-1024.png')
+    os.system(f'sips -s format png -z 180 180 "{src}" --out app_code/AppIcon60x60@3x.png')
 
 with open("Assets.xcassets/AppIcon.appiconset/Contents.json", "w") as f:
     json.dump(icon_contents, f, indent=2)
@@ -68,7 +70,6 @@ class MainViewController: UIViewController {
         webView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
         webView.backgroundColor = UIColor(red: 0.05, green: 0.03, blue: 0.11, alpha: 1.0)
         webView.isOpaque = false
-        webView.scrollView.bounces = false
         view.addSubview(webView)
 
         if let htmlPath = Bundle.main.path(forResource: "index", ofType: "html", inDirectory: "app_code") {
@@ -91,6 +92,10 @@ info_plist = f'''<?xml version="1.0" encoding="UTF-8"?>
     <string>$(EXECUTABLE_NAME)</string>
     <key>CFBundleIdentifier</key>
     <string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+    <key>CFBundleIconFiles</key>
+    <array>
+        <string>AppIcon60x60</string>
+    </array>
     <key>CFBundleInfoDictionaryVersion</key>
     <string>6.0</string>
     <key>CFBundleName</key>
@@ -107,11 +112,6 @@ info_plist = f'''<?xml version="1.0" encoding="UTF-8"?>
     <string>Dark</string>
     <key>UILaunchScreen</key>
     <dict/>
-    <key>NSAppTransportSecurity</key>
-    <dict>
-        <key>NSAllowsArbitraryLoads</key>
-        <true/>
-    </dict>
 </dict>
 </plist>
 '''
