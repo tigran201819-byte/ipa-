@@ -1,10 +1,39 @@
 import sys
 import os
+import json
 
 app_name = sys.argv[1]
 bundle_id = sys.argv[2]
 
 os.makedirs("Sources", exist_ok=True)
+os.makedirs("Assets.xcassets/AppIcon.appiconset", exist_ok=True)
+
+# Настройка иконки приложения из app_code/icon.png
+icon_contents = {
+    "images": [
+        {
+            "filename": "icon-1024.png",
+            "idiom": "universal",
+            "platform": "ios",
+            "size": "1024x1024"
+        }
+    ],
+    "info": {
+        "author": "xcode",
+        "version": 1
+    }
+}
+
+if os.path.exists("app_code/icon.png"):
+    os.system("sips -s format png -z 1024 1024 app_code/icon.png --out Assets.xcassets/AppIcon.appiconset/icon-1024.png")
+elif os.path.exists("app_code/icon.jpg"):
+    os.system("sips -s format png -z 1024 1024 app_code/icon.jpg --out Assets.xcassets/AppIcon.appiconset/icon-1024.png")
+
+with open("Assets.xcassets/AppIcon.appiconset/Contents.json", "w") as f:
+    json.dump(icon_contents, f, indent=2)
+
+with open("Assets.xcassets/Contents.json", "w") as f:
+    json.dump({"info": {"author": "xcode", "version": 1}}, f, indent=2)
 
 swift_code = '''import UIKit
 import WebKit
@@ -30,15 +59,16 @@ class MainViewController: UIViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        view.backgroundColor = .black
+        view.backgroundColor = UIColor(red: 0.05, green: 0.03, blue: 0.11, alpha: 1.0)
 
         let config = WKWebViewConfiguration()
         config.preferences.setValue(true, forKey: "allowFileAccessFromFileURLs")
         
         webView = WKWebView(frame: view.bounds, configuration: config)
         webView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
-        webView.backgroundColor = .black
+        webView.backgroundColor = UIColor(red: 0.05, green: 0.03, blue: 0.11, alpha: 1.0)
         webView.isOpaque = false
+        webView.scrollView.bounces = false
         view.addSubview(webView)
 
         if let htmlPath = Bundle.main.path(forResource: "index", ofType: "html", inDirectory: "app_code") {
@@ -54,7 +84,7 @@ info_plist = f'''<?xml version="1.0" encoding="UTF-8"?>
 <plist version="1.0">
 <dict>
     <key>CFBundleDevelopmentRegion</key>
-    <string>en</string>
+    <string>ru</string>
     <key>CFBundleDisplayName</key>
     <string>{app_name}</string>
     <key>CFBundleExecutable</key>
@@ -86,10 +116,10 @@ info_plist = f'''<?xml version="1.0" encoding="UTF-8"?>
 </plist>
 '''
 
-with open("Sources/App.swift", "w") as f:
+with open("Sources/App.swift", "w", encoding="utf-8") as f:
     f.write(swift_code)
 
-with open("Sources/Info.plist", "w") as f:
+with open("Sources/Info.plist", "w", encoding="utf-8") as f:
     f.write(info_plist)
 
 project_yml = f'''name: {app_name}
@@ -104,16 +134,18 @@ targets:
       - path: Sources
         excludes:
           - Info.plist
+      - path: Assets.xcassets
       - path: app_code
         type: folder
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: {bundle_id}
         INFOPLIST_FILE: Sources/Info.plist
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         GENERATE_INFOPLIST_FILE: NO
         ENABLE_BITCODE: NO
         CODE_SIGNING_ALLOWED: NO
 '''
 
-with open("project.yml", "w") as f:
+with open("project.yml", "w", encoding="utf-8") as f:
     f.write(project_yml)
