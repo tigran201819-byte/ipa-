@@ -49,13 +49,16 @@ jobs:
 
       - name: Генерация Xcode проекта
         run: |
-          python3 setup_project.py "${{ github.event.inputs.app_name }}" "${{ github.event.inputs.bundle_id }}"
+          CLEAN_NAME=$(echo "${{ github.event.inputs.app_name }}" | tr -cd '[:alnum:]_-')
+          CLEAN_BUNDLE=$(echo "${{ github.event.inputs.bundle_id }}" | tr -d ' ')
+          echo "CLEAN_NAME=$CLEAN_NAME" >> $GITHUB_ENV
+          python3 setup_project.py "$CLEAN_NAME" "$CLEAN_BUNDLE"
           xcodegen generate
 
       - name: Сборка и упаковка в IPA
         run: |
-          xcodebuild -project "${{ github.event.inputs.app_name }}.xcodeproj" \
-            -scheme "${{ github.event.inputs.app_name }}" \
+          xcodebuild -project "${CLEAN_NAME}.xcodeproj" \
+            -scheme "${CLEAN_NAME}" \
             -configuration Release \
             -sdk iphoneos \
             -destination 'generic/platform=iOS' \
@@ -63,12 +66,14 @@ jobs:
             CONFIGURATION_BUILD_DIR=build_out \
             build
 
-          mkdir -p Payload
-          cp -r "build_out/${{ github.event.inputs.app_name }}.app" Payload/
-          zip -r "${{ github.event.inputs.app_name }}.ipa" Payload
+          mkdir -p out_ipa/Payload
+          cp -r "build_out/${CLEAN_NAME}.app" out_ipa/Payload/
+          cd out_ipa && zip -r "../${CLEAN_NAME}.ipa" Payload
+          cd .. && ls -lh "${CLEAN_NAME}.ipa"
 
       - name: Сохранение готового IPA
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ github.event.inputs.app_name }}-IPA
-          path: "*.ipa"
+          name: ${{ env.CLEAN_NAME }}-IPA
+          path: ${{ env.CLEAN_NAME }}.ipa
+          if-no-files-found: error
